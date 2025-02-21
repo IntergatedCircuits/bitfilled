@@ -1,0 +1,15 @@
+target_sources(${PROJECT_NAME}
+    INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/bitfilled.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/access.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/bits.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/macros.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/mmreg.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/sized_unsigned.hpp
+)
+
+target_include_directories(${PROJECT_NAME}
+    INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}>
+)
