@@ -4,9 +4,10 @@ target_sources(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/bitfield_traits.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/access.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/bits.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/integer.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/macros.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/mmreg.hpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/sized_unsigned.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/size.hpp
 )
 
 target_include_directories(${PROJECT_NAME}

@@ -3,7 +3,9 @@
 #define __BITFILLED_BITS_HPP__
 
 #include "bitfilled/access.hpp"
-#include "bitfilled/sized_unsigned.hpp"
+#include "bitfilled/size.hpp"
+
+#include "bitfilled/integer.hpp"
 
 namespace bitfilled
 {
