@@ -16,9 +16,9 @@ struct legacy
     std::int32_t integer : 5;
 };
 
-struct eightbits : public bitfilled::host<std::uint8_t>
+struct eightbits : public bitfilled::host_integer<std::uint8_t>
 {
-    using superclass::operator=;
+    BF_COPY_SUPERCLASS(eightbits);
 
     BF_BITS(bool, 0) boolean;
     BF_BITS(enumeration, 1, 2) enumerated;
@@ -26,9 +26,9 @@ struct eightbits : public bitfilled::host<std::uint8_t>
 
     BF_BITS(std::uint8_t, 0, 7) overlapping;
 
-    BF_BITSET(std::int32_t, 2, 4, 0) signs;
+    BF_BITSET(std::int32_t, 2, 3, 1) signs;
 };
-static_assert(sizeof(eightbits) == sizeof(std::uint8_t));
+static_assert(sizeof(eightbits::superclass) == sizeof(eightbits));
 
 TEST_CASE("variable default construct")
 {
@@ -43,7 +43,6 @@ TEST_CASE("variable default construct")
     CHECK(var.signs[0] == 0);
     CHECK(var.signs[1] == 0);
     CHECK(var.signs[2] == 0);
-    CHECK(var.signs[3] == 0);
 }
 
 TEST_CASE("variable construct")
@@ -59,7 +58,6 @@ TEST_CASE("variable construct")
     CHECK(var.signs[0] == -1);
     CHECK(var.signs[1] == -1);
     CHECK(var.signs[2] == -1);
-    CHECK(var.signs[3] == -1);
 }
 
 TEST_CASE("variable sign extend")
@@ -82,21 +80,20 @@ TEST_CASE("variable sign extend")
     CHECK(var.signs[0] == 1);
     CHECK(var.signs[1] == 0);
     CHECK(var.signs[2] == 0);
-    CHECK(var.signs[3] == 0);
 }
 
 TEST_CASE("variable assignment")
 {
     eightbits var, var2;
-    std::uint8_t raw{42};
+    std::uint8_t raw{25};
 
     var2 = var = raw;
-    CHECK(var == 42);
-    CHECK(var2 == 42);
+    CHECK(var == 25);
+    CHECK(var2 == 25);
 
-    var.signs[3] = -2;
+    var.signs[2] = -2;
     raw = var;
-    CHECK(raw == 42 + 0x80);
+    CHECK(raw == 25 + 0x40);
 
     var.overlapping = 24;
     raw = var;
@@ -120,7 +117,12 @@ TEST_CASE("variable field assignment")
 {
     eightbits var1, var2;
 
+#if BITFILLED_ASSIGN_RETURNS_REF
     var2.integer = var1.integer = 1;
+#else
+    var1.integer = 1;
+    var2.integer = var1.integer;
+#endif
     CHECK(var1 == (1 << var1.integer.offset()));
     CHECK(var2 == (1 << var2.integer.offset()));
     CHECK(var2.integer == var1.integer);
@@ -129,14 +131,16 @@ TEST_CASE("variable field assignment")
     CHECK(var2.integer == var1.integer);
 }
 
-TEST_CASE("variable field initialization")
+TEST_CASE("variable set assignment")
 {
-    eightbits var1{.boolean = true, .enumerated = enumeration::ENUMERATOR_3, .integer = 0x1f};
-    CHECK(var1 == 0xff);
+    eightbits var1{0}, var2{0xff};
 
-    eightbits var2{.boolean = true,
-                   .enumerated = enumeration::ENUMERATOR_3,
-                   .integer = 0x1f,
-                   .overlapping = 0};
-    CHECK(var2 == 0);
+    var2.signs[0] = -2;
+    var2.signs[1] = -2;
+    var2.signs[2] = -2;
+    var1.signs = var2.signs;
+    CHECK((var1 & 0x81) == 0);
+    CHECK(var1.signs[0] == -2);
+    CHECK(var1.signs[1] == -2);
+    CHECK(var1.signs[2] == -2);
 }

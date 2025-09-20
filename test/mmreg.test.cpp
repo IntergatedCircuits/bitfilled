@@ -26,18 +26,19 @@ static_assert(sizeof(memory_mapped_reg) == sizeof(std::uint8_t));
 template <enum bitfilled::access ACCESS>
 struct mmr : public bitfilled::mmreg<std::uint8_t, ACCESS>
 {
-    using bitfilled::mmreg<std::uint8_t, ACCESS>::operator=;
-    using ops = bitfilled::bitfield_ops<std::uint8_t, ACCESS>;
+    using base_type = bitfilled::mmreg<std::uint8_t, ACCESS>;
+    using base_type::operator=;
+    using bf_ops = base_type::bf_ops;
 
     // BF_MMREGBITS(bool, r, 0)  d;
 
-    using boolean_t = bitfilled::regbitfield<bool, ops, ACCESS, 0>;
+    using boolean_t = bitfilled::regbitfield<bool, bf_ops, ACCESS, 0>;
     [[no_unique_address]] boolean_t boolean;
 
-    using enumeration_t = bitfilled::regbitfield<enumeration, ops, ACCESS, 1, 2>;
+    using enumeration_t = bitfilled::regbitfield<enumeration, bf_ops, ACCESS, 1, 2>;
     [[no_unique_address]] enumeration_t enumerated;
 
-    using integer_t = bitfilled::regbitfield<std::int32_t, ops, ACCESS, 3, 7>;
+    using integer_t = bitfilled::regbitfield<std::int32_t, bf_ops, ACCESS, 3, 7>;
     [[no_unique_address]] integer_t integer;
 };
 static_assert(sizeof(mmr<access::rw>) == sizeof(std::uint8_t));
@@ -50,7 +51,13 @@ TEST_CASE("mmregs assignment")
     auto& ro = reinterpret_cast<volatile mmr<access::r>&>(v[static_cast<unsigned>(access::r)]);
     auto& wo = reinterpret_cast<volatile mmr<access::w>&>(v[static_cast<unsigned>(access::w)]);
 
+#if BITFILLED_ASSIGN_RETURNS_REF
     wo = rw1 = rw2 = ro;
+#else
+    rw2 = ro;
+    rw1 = rw2;
+    wo = rw1;
+#endif
     CHECK(ro == 42);
     CHECK(rw2 == 42);
     CHECK(rw1 == 42);
@@ -71,7 +78,13 @@ TEST_CASE("mmregs field assignment")
     CHECK(integer == 3);
     wo.integer = integer;
 
+#if BITFILLED_ASSIGN_RETURNS_REF
     wo.integer = rw1.integer = rw2.integer = ro.integer;
+#else
+    rw2.integer = ro.integer;
+    rw1.integer = rw2.integer;
+    wo.integer = rw1.integer;
+#endif
     CHECK(ro == (3 << ro.integer.offset()));
     CHECK(rw1 == (3 << rw1.integer.offset()));
     CHECK(rw2 == (3 << rw2.integer.offset()));
@@ -93,4 +106,6 @@ TEST_CASE("mmregs reference")
     CHECK((std::uintptr_t)&raw_ro == (std::uintptr_t)&ro);
     raw_rw1 = 0xaa;
     CHECK(rw1 == 0xaa);
+    wo = 0xaa;
+    wo = ro;
 }

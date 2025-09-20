@@ -7,9 +7,13 @@
 #include <bit>
 #include <concepts>
 #include <cstdint>
+#include "bitfilled/base_ops.hpp"
 
 namespace bitfilled
 {
+
+template <typename T>
+concept Integral = std::is_integral_v<T>;
 
 /// @brief  Lookup unsigned integer of matching size
 template <std::size_t SIZE, class T = void>
@@ -47,14 +51,12 @@ using sized_unsigned_t = typename sized_integer<SIZE>::unsigned_type;
 template <std::size_t SIZE>
 using sized_signed_t = typename sized_integer<SIZE>::signed_type;
 
-template <typename T>
-concept IntegerConvertable = std::is_convertible_v<T, sized_unsigned_t<sizeof(T)>>;
-
 /// @brief  An array type for flexibly storing an integer value.
 template <std::size_t SIZE>
 struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
 {
     using base_type = std::array<sized_unsigned_t<1>, SIZE>;
+    using base_type::operator=;
 
     constexpr integer_storage() : base_type() {}
 
@@ -83,20 +85,28 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
         }
 #endif
         // transfer the bytes to the correct position
-        constexpr long size_diff = sizeof(T) - SIZE;
-        if ((size_diff == 0) or (endianness == std::endian::little))
+        constexpr long size_diff = (long)sizeof(T) - (long)SIZE;
+        constexpr auto min_size = std::min(sizeof(T), SIZE);
+        if (endianness == std::endian::little)
         {
-            std::copy(value_repr.data(), value_repr.data() + std::min(sizeof(T), SIZE),
-                      this->data());
+            std::copy(value_repr.data(), value_repr.data() + min_size, this->data());
         }
-        else if (size_diff >= 0)
+        else
         {
-            std::copy(value_repr.data() + size_diff, value_repr.data() + size_diff + SIZE,
-                      this->data());
-        }
-        else // size_diff < 0
-        {
-            std::copy(value_repr.data(), value_repr.data() + sizeof(T), this->data() - size_diff);
+            if constexpr (size_diff == 0)
+            {
+                *this = value_repr;
+            }
+            else if constexpr (size_diff > 0)
+            {
+                std::copy(value_repr.data() + size_diff, value_repr.data() + size_diff + SIZE,
+                          this->data());
+            }
+            else // size_diff < 0
+            {
+                std::copy(value_repr.data(), value_repr.data() + sizeof(T),
+                          this->data() - size_diff);
+            }
         }
     }
 
@@ -113,19 +123,27 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
         }
 
         // transfer the bytes to the correct position
-        constexpr long size_diff = SIZE - sizeof(T);
-        if ((size_diff == 0) or (endianness == std::endian::little))
+        constexpr long size_diff = (long)SIZE - (long)sizeof(T);
+        constexpr auto min_size = std::min(sizeof(T), SIZE);
+        if (endianness == std::endian::little)
         {
-            std::copy(this->data(), this->data() + std::min(sizeof(T), SIZE), value_repr.data());
+            std::copy(this->data(), this->data() + min_size, value_repr.data());
         }
-        else if (size_diff > 0)
+        else
         {
-            std::copy(this->data() + size_diff, this->data() + size_diff + sizeof(T),
-                      value_repr.data());
-        }
-        else // size_diff < 0
-        {
-            std::copy(this->data(), this->data() + SIZE, value_repr.data() - size_diff);
+            if constexpr (size_diff == 0)
+            {
+                value_repr = *this;
+            }
+            else if constexpr (size_diff > 0)
+            {
+                std::copy(this->data() + size_diff, this->data() + size_diff + sizeof(T),
+                          value_repr.data());
+            }
+            else // size_diff < 0
+            {
+                std::copy(this->data(), this->data() + SIZE, value_repr.data() - size_diff);
+            }
         }
 
         // if not native endianness, reverse byte order
@@ -148,14 +166,21 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
 
 /// @brief  packed_integer stores an integer value in a packed byte array, with a defined
 ///         endianness.
-template <std::endian ENDIAN, std::size_t SIZE, typename T = sized_unsigned_t<std::bit_ceil(SIZE)>>
+/// @tparam ENDIAN: the endianness to use to convert between the integral value and the underlying
+/// memory storage
+/// @tparam SIZE: the integer storage size in octets
+/// @tparam T: the native integral representation to use
+template <std::endian ENDIAN, std::size_t SIZE, Integral T = sized_unsigned_t<std::bit_ceil(SIZE)>>
 struct packed_integer
 {
   private:
     integer_storage<SIZE> storage_;
 
   public:
+    using superclass = packed_integer;
+    using bf_ops = bitfilled::base::bitfield_ops<packed_integer>;
     using value_type = T;
+
     static constexpr auto endianness = ENDIAN;
 
     constexpr packed_integer() : storage_() {}
@@ -169,6 +194,36 @@ struct packed_integer
     {
         return storage_.template to_integral<value_type>(endianness);
     }
+};
+
+/// @brief  The host_integer class wraps an arithmetic type to allow subclassing it
+///         (e.g. for the purpose of adding bitfields to it).
+/// @tparam T: the arithmetic type to wrap
+/// @tparam TOps: the type containing the bitfield_ops type for bitfield operations
+template <Integral T, typename TOps = bitfilled::base>
+struct host_integer
+{
+    using superclass = host_integer;
+    using value_type = T;
+    using bf_ops = typename TOps::template bitfield_ops<host_integer>;
+
+    constexpr host_integer() = default;
+    constexpr host_integer(T v) : raw_(v) {}
+    constexpr host_integer& operator=(T other)
+    {
+        raw_ = other;
+        return *this;
+    }
+
+  private:
+    T raw_{};
+
+  public:
+    constexpr operator auto &() { return raw_; }
+    constexpr operator auto &() const { return raw_; }
+    constexpr operator auto &() volatile { return raw_; }
+    constexpr operator auto &() const volatile { return raw_; }
+    // constexpr bool operator<=>(const defund&) const = default;
 };
 
 } // namespace bitfilled

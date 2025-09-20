@@ -49,6 +49,7 @@ constexpr inline bool has_padding_field = []() constexpr
 }();
 
 // bit-field endianness is either little (least significant bit field first), or big
+#if defined(__GNUC__) && (__GNUC__ >= 11)
 constexpr inline std::endian endianness = []() constexpr
 {
     constexpr struct s
@@ -60,6 +61,18 @@ constexpr inline std::endian endianness = []() constexpr
     static_assert(x);
     return x == 1 ? std::endian::little : std::endian::big;
 }();
+#else
+inline std::endian endianness = []()
+{
+    struct s
+    {
+        char a : 1 = 1;
+        char b : 7 = 0;
+    } val;
+    static const auto x = std::bit_cast<std::array<char, bitfilled::aligned_size<s>>>(val).front();
+    return x == 1 ? std::endian::little : std::endian::big;
+}();
+#endif
 
 // an implementation either wraps overflows, or clamps them
 constexpr inline bool overflow_wraps = []() constexpr

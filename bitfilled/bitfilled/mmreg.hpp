@@ -3,13 +3,12 @@
 #define __BITFILLED_MMREG_HPP__
 
 #include "bitfilled/access.hpp"
-#include "bitfilled/bits.hpp"
+#include "bitfilled/integer.hpp"
 
 namespace bitfilled
 {
 namespace detail
 {
-
 // the conversion operators cannot be selectively enabled via concepts,
 // so separate base classes are used instead
 template <enum access ACCESS, class TReadOnly, class TWriteOnly, class TReadWrite,
@@ -37,7 +36,7 @@ struct accesscondition<access::read_ephemeralwrite, TReadOnly, TWriteOnly, TRead
 {
     using type = TRead_EphemeralWrite;
 };
-template <BitwiseAccessible T>
+template <Integral T>
 struct mmr_r
 {
     constexpr operator const auto &() { return raw; }
@@ -48,13 +47,13 @@ struct mmr_r
   protected:
     T raw{};
 };
-template <BitwiseAccessible T>
+template <Integral T>
 struct mmr_w
 {
   protected:
     T raw{};
 };
-template <BitwiseAccessible T>
+template <Integral T>
 struct mmr_rw
 {
     constexpr operator auto &() { return raw; }
@@ -67,39 +66,68 @@ struct mmr_rw
 };
 } // namespace detail
 
-// clang-format off
-
 /// @brief  mmreg represents a memory mapped register.
-template <BitwiseAccessible T, enum access ACCESS = access::readwrite, typename Tops = bitfield_ops<T, ACCESS>>
-struct mmreg : public detail::accesscondition<ACCESS, detail::mmr_r<T>, detail::mmr_w<T>, detail::mmr_rw<T>>::type
+template <Integral T, enum access ACCESS = access::readwrite, typename TOps = bitfilled::base>
+struct mmreg : public detail::accesscondition<ACCESS, detail::mmr_r<T>, detail::mmr_w<T>,
+                                              detail::mmr_rw<T>>::type
 {
     using superclass = mmreg;
-    using ops = Tops;
+    using value_type = T;
+    using bf_ops = typename TOps::template bitfield_ops<mmreg, ACCESS>;
 
-private:
-    using base_type = detail::accesscondition<ACCESS, detail::mmr_r<T>, detail::mmr_w<T>, detail::mmr_rw<T>>::type;
+  private:
+    using base_type = detail::accesscondition<ACCESS, detail::mmr_r<T>, detail::mmr_w<T>,
+                                              detail::mmr_rw<T>>::type;
     using base_type::raw;
 
-public:
+  public:
     static constexpr enum access access() { return ACCESS; }
     constexpr mmreg() = default;
+    constexpr mmreg(T other)
+        requires(is_readwrite<ACCESS>)
+    {
+        raw = other;
+    }
 
-    constexpr operator T() const requires(is_readable<ACCESS>) { return raw; }
-    constexpr operator T() const volatile requires(is_readable<ACCESS>) { return raw; }
     constexpr static auto size() { return sizeof(raw); }
 
-    constexpr void operator=(T other) requires(is_writeonly<ACCESS>) { raw = other; }
-    constexpr void operator=(T other) volatile requires(is_writeonly<ACCESS>) { raw = other; }
-    constexpr mmreg& operator=(T other) requires(is_readwrite<ACCESS>) { raw = other; return *this;}
-    constexpr volatile mmreg& operator=(T other) volatile requires(is_readwrite<ACCESS>) { raw = other; return *this;}
+    constexpr void operator=(T other)
+        requires(is_writeonly<ACCESS>)
+    {
+        raw = other;
+    }
+    // clang-format off
+    constexpr void operator=(T other) volatile
+        requires(is_writeonly<ACCESS>)
+    {
+        raw = other;
+    }
+    // clang-format on
+    constexpr BITFILLED_ASSIGN_RETURN_DECL(auto&) operator=(T other)
+        requires(is_readwrite<ACCESS>)
+    {
+        raw = other;
+        return BITFILLED_ASSIGN_RETURN_EXPR(*this);
+    }
+    // clang-format off
+    constexpr BITFILLED_ASSIGN_RETURN_DECL(auto&) operator=(T other) volatile
+        requires(is_readwrite<ACCESS>)
+    {
+        raw = other;
+        // when BITFILLED_ASSIGN_RETURNS_REF != 0
+        // GCC warning: implicit dereference will not access object of type '' in statement
+        // eliminating the warning: [[maybe_unused]] auto& _ = const_cast<decltype(a)::superclass&>(a = b);
+        return BITFILLED_ASSIGN_RETURN_EXPR(*this);
+    }
+    // clang-format on
 
-    constexpr mmreg(const mmreg&) requires(is_readwrite<ACCESS>) = default;
-    constexpr mmreg(const mmreg&) requires(!is_readwrite<ACCESS>) = delete;
-    constexpr mmreg& operator=(const mmreg&) requires(is_readwrite<ACCESS>) = default;
-    constexpr mmreg& operator=(const mmreg&) requires(!is_readwrite<ACCESS>) = delete;
+    constexpr mmreg(const mmreg&)
+        requires(!is_readwrite<ACCESS>)
+    = delete;
+    constexpr mmreg& operator=(const mmreg&)
+        requires(!is_readwrite<ACCESS>)
+    = delete;
 };
-
-// clang-format on
 
 } // namespace bitfilled
 

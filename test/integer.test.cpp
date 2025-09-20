@@ -1,4 +1,6 @@
 #include "bitfilled/integer.hpp"
+#include "bitfilled/bits.hpp"
+#include "bitfilled/macros.hpp"
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -62,8 +64,41 @@ TEMPLATE_TEST_CASE("integer_storage", "[vector][template]", endian_type<std::end
     constexpr uint32_t u32_ = 0x12345678;
     constexpr packed_integer<TestType::endianness, 4> pus4{u32_};
     static_assert(pus4 == u32_);
-    constexpr int32_t i32_ = 0x87654321;
+    constexpr int32_t i32_ = (int32_t)0x87654321;
     constexpr packed_integer<TestType::endianness, 4, int32_t> ps4{i32_};
     static_assert(ps4 == i32_);
 #endif
+}
+
+template <std::endian ENDIAN, std::size_t SIZE, typename T = sized_unsigned_t<std::bit_ceil(SIZE)>>
+struct packed_integer_with_bfs : packed_integer<ENDIAN, SIZE, T>
+{
+    using base_type = packed_integer<ENDIAN, SIZE, T>;
+    using base_type::operator=;
+    using bf_ops = base_type::bf_ops;
+    [[no_unique_address]] ::bitfilled::bitfield<unsigned, bf_ops, 0, 15> halfword{};
+};
+
+struct demo : packed_integer<std::endian::little, 4>
+{
+    using superclass::operator=;
+    BF_BITS(unsigned, 0, 2) a {};
+};
+
+TEMPLATE_TEST_CASE("packed_integer_bits", "[vector][template]", endian_type<std::endian::little>,
+                   endian_type<std::endian::big>)
+{
+    packed_integer_with_bfs<TestType::endianness, 4> pus4{};
+    CHECK(pus4.halfword == 0);
+    pus4.halfword = 0xabcd;
+    CHECK(pus4.halfword == 0xabcd);
+    CHECK(pus4 == 0xabcd);
+    pus4 = 0x12345678;
+    CHECK(pus4.halfword == 0x5678);
+
+    demo d{}, d2{23};
+    d = d2;
+    d.a = 0;
+    d = 0;
+    d2.a = d.a;
 }
