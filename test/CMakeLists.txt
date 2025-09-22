@@ -1,4 +1,4 @@
-include(CPM)
+include(get_cpm)
 CPMAddPackage("gh:catchorg/Catch2@3.5.4")
 list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
 
