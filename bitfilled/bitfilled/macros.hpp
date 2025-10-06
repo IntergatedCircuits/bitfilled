@@ -29,4 +29,14 @@
 /// @param ... Custom bitfield operations when desired (e.g., bitband<PERIPH_BASE>).
 #define BF_MMREG(TYPE, ...) public ::bitfilled::mmreg<TYPE, ::bitfilled::access::__VA_ARGS__>
 
+#define BF_CONCAT_IMPL(X, Y) X##Y
+#define BF_CONCAT(X, Y) BF_CONCAT_IMPL(X, Y)
+#define BF_UNIQUE_NAME(NAME) BF_CONCAT(NAME, __LINE__)
+
+#define BF_MMREG_RESERVED(WIDTH, SIZE)                                                             \
+  private:                                                                                         \
+    const ::std::array<::bitfilled::sized_unsigned_t<WIDTH>, SIZE> BF_UNIQUE_NAME(_reserved_);     \
+                                                                                                   \
+  public:
+
 #endif // __BITFILLED_MACROS_HPP__
