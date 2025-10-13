@@ -1,9 +1,10 @@
 #include <bit>
 #include "bitfilled.hpp"
-#include <catch2/catch_test_macros.hpp>
+#include <boost/ut.hpp>
 #include <type_traits>
 
 using namespace bitfilled;
+using namespace boost::ut;
 
 enum enumeration
 {
@@ -43,69 +44,75 @@ struct mmr : public bitfilled::mmreg<std::uint8_t, ACCESS>
 };
 static_assert(sizeof(mmr<access::rw>) == sizeof(std::uint8_t));
 
-TEST_CASE("mmregs assignment")
+suite mmreg = []
 {
-    std::uint8_t v[static_cast<unsigned>(access::rw) + 1]{0, 42, 0, 0};
-    volatile mmr<access::rw> rw1;
-    auto& rw2 = reinterpret_cast<volatile mmr<access::rw>&>(v[static_cast<unsigned>(access::rw)]);
-    auto& ro = reinterpret_cast<volatile mmr<access::r>&>(v[static_cast<unsigned>(access::r)]);
-    auto& wo = reinterpret_cast<volatile mmr<access::w>&>(v[static_cast<unsigned>(access::w)]);
+    "mmregs assignment"_test = []
+    {
+        std::uint8_t v[static_cast<unsigned>(access::rw) + 1]{0, 42, 0, 0};
+        volatile mmr<access::rw> rw1;
+        auto& rw2 =
+            reinterpret_cast<volatile mmr<access::rw>&>(v[static_cast<unsigned>(access::rw)]);
+        auto& ro = reinterpret_cast<volatile mmr<access::r>&>(v[static_cast<unsigned>(access::r)]);
+        auto& wo = reinterpret_cast<volatile mmr<access::w>&>(v[static_cast<unsigned>(access::w)]);
 
 #if BITFILLED_ASSIGN_RETURNS_REF
-    wo = rw1 = rw2 = ro;
+        wo = rw1 = rw2 = ro;
 #else
-    rw2 = ro;
-    rw1 = rw2;
-    wo = rw1;
+        rw2 = ro;
+        rw1 = rw2;
+        wo = rw1;
 #endif
-    CHECK(ro == 42);
-    CHECK(rw2 == 42);
-    CHECK(rw1 == 42);
-}
+        expect(ro == 42);
+        expect(rw2 == 42);
+        expect(rw1 == 42);
+    };
 
-TEST_CASE("mmregs field assignment")
-{
-    std::uint8_t v[static_cast<unsigned>(access::rw) + 1]{};
-    volatile mmr<access::rw> rw1;
-    auto& rw2 = reinterpret_cast<volatile mmr<access::rw>&>(v[static_cast<unsigned>(access::rw)]);
-    auto& ro = reinterpret_cast<volatile mmr<access::r>&>(v[static_cast<unsigned>(access::r)]);
-    auto& wo = reinterpret_cast<volatile mmr<access::w>&>(v[static_cast<unsigned>(access::w)]);
+    "mmregs field assignment"_test = []
+    {
+        std::uint8_t v[static_cast<unsigned>(access::rw) + 1]{};
+        volatile mmr<access::rw> rw1;
+        auto& rw2 =
+            reinterpret_cast<volatile mmr<access::rw>&>(v[static_cast<unsigned>(access::rw)]);
+        auto& ro = reinterpret_cast<volatile mmr<access::r>&>(v[static_cast<unsigned>(access::r)]);
+        auto& wo = reinterpret_cast<volatile mmr<access::w>&>(v[static_cast<unsigned>(access::w)]);
 
-    v[static_cast<unsigned>(access::r)] = 3 << mmr<access::rw>::integer_t::offset();
+        v[static_cast<unsigned>(access::r)] = 3 << mmr<access::rw>::integer_t::offset();
 
-    int integer = ro.integer;
-    CHECK(ro.integer == 3);
-    CHECK(integer == 3);
-    wo.integer = integer;
+        int integer = ro.integer;
+        expect(ro.integer == 3);
+        expect(integer == 3);
+        wo.integer = integer;
 
 #if BITFILLED_ASSIGN_RETURNS_REF
-    wo.integer = rw1.integer = rw2.integer = ro.integer;
+        wo.integer = rw1.integer = rw2.integer = ro.integer;
 #else
-    rw2.integer = ro.integer;
-    rw1.integer = rw2.integer;
-    wo.integer = rw1.integer;
+        rw2.integer = ro.integer;
+        rw1.integer = rw2.integer;
+        wo.integer = rw1.integer;
 #endif
-    CHECK(ro == (3 << ro.integer.offset()));
-    CHECK(rw1 == (3 << rw1.integer.offset()));
-    CHECK(rw2 == (3 << rw2.integer.offset()));
-}
+        expect(ro == (3 << ro.integer.offset()));
+        expect(rw1 == (3 << rw1.integer.offset()));
+        expect(rw2 == (3 << rw2.integer.offset()));
+    };
 
-TEST_CASE("mmregs reference")
-{
-    std::uint8_t v[static_cast<unsigned>(access::rw) + 1]{};
-    volatile mmr<access::rw> rw1;
-    auto& rw2 = reinterpret_cast<volatile mmr<access::rw>&>(v[static_cast<unsigned>(access::rw)]);
-    auto& ro = reinterpret_cast<volatile mmr<access::r>&>(v[static_cast<unsigned>(access::r)]);
-    auto& wo = reinterpret_cast<volatile mmr<access::w>&>(v[static_cast<unsigned>(access::w)]);
-    volatile std::uint8_t& raw_rw1 = rw1;
-    volatile std::uint8_t& raw_rw2 = rw2;
-    const volatile std::uint8_t& raw_ro = ro;
+    "mmregs reference"_test = []
+    {
+        std::uint8_t v[static_cast<unsigned>(access::rw) + 1]{};
+        volatile mmr<access::rw> rw1;
+        auto& rw2 =
+            reinterpret_cast<volatile mmr<access::rw>&>(v[static_cast<unsigned>(access::rw)]);
+        auto& ro = reinterpret_cast<volatile mmr<access::r>&>(v[static_cast<unsigned>(access::r)]);
+        auto& wo = reinterpret_cast<volatile mmr<access::w>&>(v[static_cast<unsigned>(access::w)]);
+        volatile std::uint8_t& raw_rw1 = rw1;
+        volatile std::uint8_t& raw_rw2 = rw2;
+        const volatile std::uint8_t& raw_ro = ro;
 
-    CHECK((std::uintptr_t)&raw_rw1 == (std::uintptr_t)&rw1);
-    CHECK((std::uintptr_t)&raw_rw2 == (std::uintptr_t)&rw2);
-    CHECK((std::uintptr_t)&raw_ro == (std::uintptr_t)&ro);
-    raw_rw1 = 0xaa;
-    CHECK(rw1 == 0xaa);
-    wo = 0xaa;
-    wo = ro;
-}
+        expect((std::uintptr_t)&raw_rw1 == (std::uintptr_t)&rw1);
+        expect((std::uintptr_t)&raw_rw2 == (std::uintptr_t)&rw2);
+        expect((std::uintptr_t)&raw_ro == (std::uintptr_t)&ro);
+        raw_rw1 = 0xaa;
+        expect(rw1 == 0xaa);
+        wo = 0xaa;
+        wo = ro;
+    };
+};

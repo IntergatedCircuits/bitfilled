@@ -1,11 +1,8 @@
 include(get_cpm)
-CPMAddPackage("gh:catchorg/Catch2@3.5.4")
-list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
-
+CPMAddPackage("gh:boost-ext/ut@2.3.1")
 include(CTest)
-include(Catch)
 
-add_executable(${PROJECT_NAME}-test)
+add_executable(${PROJECT_NAME}-test main.cpp)
 target_sources(${PROJECT_NAME}-test
     PRIVATE
         integer.test.cpp
@@ -16,9 +13,10 @@ target_sources(${PROJECT_NAME}-test
 target_link_libraries(${PROJECT_NAME}-test
     PRIVATE
         ${PROJECT_NAME}
-        Catch2::Catch2WithMain
+        ut
 )
-catch_discover_tests(${PROJECT_NAME}-test)
+add_test(NAME ${PROJECT_NAME}-test COMMAND ${PROJECT_NAME}-test)
+
 
 # https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html
 # https://embeddedartistry.com/blog/2023/09/20/leveraging-your-toolchain-to-improve-security/

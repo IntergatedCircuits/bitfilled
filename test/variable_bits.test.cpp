@@ -1,5 +1,8 @@
 #include "bitfilled.hpp"
-#include <catch2/catch_test_macros.hpp>
+#include <boost/ut.hpp>
+
+using namespace bitfilled;
+using namespace boost::ut;
 
 enum enumeration
 {
@@ -16,7 +19,7 @@ struct legacy
     std::int32_t integer : 5;
 };
 
-struct eightbits : public bitfilled::host_integer<std::uint8_t>
+struct eightbits : public host_integer<std::uint8_t>
 {
     BF_COPY_SUPERCLASS(eightbits);
 
@@ -30,117 +33,120 @@ struct eightbits : public bitfilled::host_integer<std::uint8_t>
 };
 static_assert(sizeof(eightbits::superclass) == sizeof(eightbits));
 
-TEST_CASE("variable default construct")
+suite variable_bits = []
 {
-    eightbits var;
+    "variable default construct"_test = []
+    {
+        eightbits var;
 
-    CHECK(var == 0);
-    CHECK(var.overlapping == 0);
-    CHECK(var.boolean == false);
-    CHECK(var.enumerated == enumeration::ENUMERATOR_0);
-    CHECK(var.integer == 0);
+        expect(that % var == 0);
+        expect(that % var.overlapping == 0);
+        expect(that % var.boolean == false);
+        expect(that % var.enumerated == enumeration::ENUMERATOR_0);
+        expect(that % var.integer == 0);
 
-    CHECK(var.signs[0] == 0);
-    CHECK(var.signs[1] == 0);
-    CHECK(var.signs[2] == 0);
-}
+        expect(that % var.signs[0] == 0);
+        expect(that % var.signs[1] == 0);
+        expect(that % var.signs[2] == 0);
+    };
 
-TEST_CASE("variable construct")
-{
-    eightbits var{0xff};
+    "variable construct"_test = []
+    {
+        eightbits var{0xff};
 
-    CHECK(var == 0xff);
-    CHECK(var.overlapping == var);
-    CHECK(var.boolean == true);
-    CHECK(var.enumerated == enumeration::ENUMERATOR_3);
-    CHECK(var.integer == -1);
+        expect(that % var == 0xff);
+        expect(that % var.overlapping == var);
+        expect(that % var.boolean == true);
+        expect(that % var.enumerated == enumeration::ENUMERATOR_3);
+        expect(that % var.integer == -1);
 
-    CHECK(var.signs[0] == -1);
-    CHECK(var.signs[1] == -1);
-    CHECK(var.signs[2] == -1);
-}
+        expect(that % var.signs[0] == -1);
+        expect(that % var.signs[1] == -1);
+        expect(that % var.signs[2] == -1);
+    };
 
-TEST_CASE("variable sign extend")
-{
-    eightbits var{0x0};
+    "variable sign extend"_test = []
+    {
+        eightbits var{0x0};
 
-    var.integer = var.integer - 1;
-    CHECK(var.integer == -1);
-    var.integer = -16;
-    CHECK(var.integer == -16);
-    var.integer = var.integer - 1;
-    CHECK(var.integer == 15);
+        var.integer = var.integer - 1;
+        expect(that % var.integer == -1);
+        var.integer = -16;
+        expect(that % var.integer == -16);
+        var.integer = var.integer - 1;
+        expect(that % var.integer == 15);
 
-    var = 0;
-    var.signs[0] = var.signs[0] - 1;
-    CHECK(var.signs[0] == -1);
-    var.signs[0] = var.signs[0] - 1;
-    CHECK(var.signs[0] == -2);
-    var.signs[0] = var.signs[0] - 1;
-    CHECK(var.signs[0] == 1);
-    CHECK(var.signs[1] == 0);
-    CHECK(var.signs[2] == 0);
-}
+        var = 0;
+        var.signs[0] = var.signs[0] - 1;
+        expect(that % var.signs[0] == -1);
+        var.signs[0] = var.signs[0] - 1;
+        expect(that % var.signs[0] == -2);
+        var.signs[0] = var.signs[0] - 1;
+        expect(that % var.signs[0] == 1);
+        expect(that % var.signs[1] == 0);
+        expect(that % var.signs[2] == 0);
+    };
 
-TEST_CASE("variable assignment")
-{
-    eightbits var, var2;
-    std::uint8_t raw{25};
+    "variable assignment"_test = []
+    {
+        eightbits var, var2;
+        std::uint8_t raw{25};
 
-    var2 = var = raw;
-    CHECK(var == 25);
-    CHECK(var2 == 25);
+        var2 = var = raw;
+        expect(that % var == 25);
+        expect(that % var2 == 25);
 
-    var.signs[2] = -2;
-    raw = var;
-    CHECK(raw == 25 + 0x40);
+        var.signs[2] = -2;
+        raw = var;
+        expect(that % raw == 25 + 0x40);
 
-    var.overlapping = 24;
-    raw = var;
-    CHECK(raw == 24);
-}
+        var.overlapping = 24;
+        raw = var;
+        expect(that % raw == 24);
+    };
 
-TEST_CASE("variable reference")
-{
-    eightbits var;
-    std::uint8_t& raw = var;
-    CHECK((std::uintptr_t)&raw == (std::uintptr_t)&var);
+    "variable reference"_test = []
+    {
+        eightbits var;
+        std::uint8_t& raw = var;
+        expect((std::uintptr_t)&raw == (std::uintptr_t)&var);
 
-    raw = 0xaa;
-    CHECK(var == 0xaa);
+        raw = 0xaa;
+        expect(that % var == 0xaa);
 
-    var = 0x55;
-    CHECK(raw == 0x55);
-}
+        var = 0x55;
+        expect(that % raw == 0x55);
+    };
 
-TEST_CASE("variable field assignment")
-{
-    eightbits var1, var2;
+    "variable field assignment"_test = []
+    {
+        eightbits var1, var2;
 
 #if BITFILLED_ASSIGN_RETURNS_REF
-    var2.integer = var1.integer = 1;
+        var2.integer = var1.integer = 1;
 #else
-    var1.integer = 1;
-    var2.integer = var1.integer;
+        var1.integer = 1;
+        var2.integer = var1.integer;
 #endif
-    CHECK(var1 == (1 << var1.integer.offset()));
-    CHECK(var2 == (1 << var2.integer.offset()));
-    CHECK(var2.integer == var1.integer);
-    var1.integer = 2;
-    var2.integer = var1.integer;
-    CHECK(var2.integer == var1.integer);
-}
+        expect(var1 == (1 << var1.integer.offset()));
+        expect(var2 == (1 << var2.integer.offset()));
+        expect(var2.integer == var1.integer);
+        var1.integer = 2;
+        var2.integer = var1.integer;
+        expect(var2.integer == var1.integer);
+    };
 
-TEST_CASE("variable set assignment")
-{
-    eightbits var1{0}, var2{0xff};
+    "variable set assignment"_test = []
+    {
+        eightbits var1{0}, var2{0xff};
 
-    var2.signs[0] = -2;
-    var2.signs[1] = -2;
-    var2.signs[2] = -2;
-    var1.signs = var2.signs;
-    CHECK((var1 & 0x81) == 0);
-    CHECK(var1.signs[0] == -2);
-    CHECK(var1.signs[1] == -2);
-    CHECK(var1.signs[2] == -2);
-}
+        var2.signs[0] = -2;
+        var2.signs[1] = -2;
+        var2.signs[2] = -2;
+        var1.signs = var2.signs;
+        expect(that % (var1 & 0x81) == 0);
+        expect(that % var1.signs[0] == -2);
+        expect(that % var1.signs[1] == -2);
+        expect(that % var1.signs[2] == -2);
+    };
+};
