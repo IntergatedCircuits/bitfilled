@@ -1,0 +1,32 @@
+# template: https://github.com/Viatorus/emio/blob/main/.github/workflows/pages.yml
+name: Deploy Github Pages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-pages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate single header file
+        run: |
+          pip install quom
+          if [[ -z "$(git tag --points-at HEAD)" ]]; then
+            DST=trunk
+          else
+            DST=$(git tag)
+          fi
+          mkdir -p web/dist/$DST
+          quom -g __BITFILLED_.* -I bitfilled bitfilled/bitfilled.hpp web/dist/$DST/bitfilled.hpp
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: web/
+          clean: false
