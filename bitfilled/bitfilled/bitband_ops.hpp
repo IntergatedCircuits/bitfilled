@@ -11,6 +11,8 @@ struct bitband
 {
     /// @brief  These bitfield operations use bit-band memory access for single-bit manipulation,
     ///         as it is implemented on ARM Cortex M3/M4 CPU architectures.
+    /// @note   These operations shall only be used on types that map directly to memory
+    ///         ( @ref host_integer and @ref mmreg )
     /// @tparam T
     /// @tparam ACCESS
     template <typename T, enum access ACCESS>

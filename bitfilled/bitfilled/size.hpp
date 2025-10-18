@@ -5,7 +5,7 @@
 #include <bit>
 #include <concepts>
 #include <cstdint>
-#include <numeric>
+#include <limits>
 #include <type_traits>
 
 namespace bitfilled

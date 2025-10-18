@@ -1,51 +1,141 @@
 # ~~Bitfield~~ Bitfilled support for C++
 
-These couple of C++20 headers provide a new, more flexible way of manipulating bit-fields.
+This header-only C++20 library provides a new, portable and more flexible way of manipulating bit-fields.
 While the current codebase is functional, it is overall still in the concept development phase,
-with important features on the horizon. Feedback is very welcome!
+with important features on the horizon. [Feedback](https://github.com/IntergatedCircuits/bitfilled/discussions) is very welcome!
 
 ## Introduction
 
-Let's look at the C(++) language's [built-in bit field][stdbitfield] first:
+What makes bitfilled different from the language standard's [bit fields][stdbitfield]?
+
+1. **Portability** - regardless of platform or toolchain, the code behavior is the same (**except MSVC**, as it refuses to implement `[[no_unique_address]]`)
+2. **Performance** - optimized binary is identical to standard bit fields
+3. **Flexibility** - allows bit fields on custom types, bit field arrays, and customizing bit operations (e.g. bit-banding)
+
+## Containing types
+
+One key thing to note in advance is that bitfilled fields are closely tied with their containing class,
+as it defines the available memory size and alignment, and bit field operations.
+Therefore let's go through these types first:
+
+### 1. Host integers
+
+The `host_integer` type is simply encapsulating an integral type, forwarding all operations to it,
+and provides the necessary scope information to the bitfilled member fields:
 
 ```cpp
-struct legacy
+#include "bitfilled/integer.hpp"
+namespace bitfilled {
+  template <Integral T, typename TOps = bitfilled::base>
+  struct host_integer;
+}
+```
+
+### 2. Packed integers with fixed endianness
+
+The `packed_integer` type is stored as a byte array, but accessible as an integral type,
+the conversion being performed based on the endianness of the type.
+The purpose of this type is to facilitate portable definition of various network protocol data units.
+```cpp
+#include "bitfilled/integer.hpp"
+namespace bitfilled {
+  template <std::endian ENDIAN, std::size_t SIZE, Integral T = sized_unsigned_t<std::bit_ceil(SIZE)>>
+  struct packed_integer;
+}
+```
+
+### 3. Memory-mapped I/O registers
+
+The `mmreg` type serves as an accurate representation of a memory-mapped register,
+with specific access limitation (e.g. read-write / read-only / write-only).
+Its bit fields have their own access specifier as well.
+```cpp
+#include "bitfilled/mmreg.hpp"
+namespace bitfilled {
+  template <Integral T, enum access ACCESS = access::readwrite, typename TOps = bitfilled::base>
+  struct mmreg;
+}
+```
+
+## Bit field types
+
+There are currently two types of fields supported:
+1. Regular bit fields, which take a contiguous bit range in memory
+2. Bit field sets, a adjacent bit fields organized into an array indexible set
+
+```cpp
+#include "bitfilled/bits.hpp"
+namespace bitfilled {
+  template <typename T, typename TOps, std::size_t FIRST_BIT, std::size_t LAST_BIT>
+  using bitfield = regbitfield<T, TOps, access::readwrite, FIRST_BIT, LAST_BIT>;
+
+  template <typename T, typename TOps, std::size_t ITEM_SIZE, std::size_t ITEM_COUNT, std::size_t OFFSET>
+  using bitfieldset = regbitfieldset<T, TOps, access::readwrite, ITEM_SIZE, ITEM_COUNT, OFFSET>;
+}
+```
+
+The main difference compared to standard bit fields is that their position is absolute,
+which also means that they can overlap one another. (Don't repeat the same field with the same type
+at the same position though, as that breaks `[[no_unique_address]]` guarantee!)
+Both of these types have an explicit access specified `reg-` version, for `mmreg` use.
+Some examples are due:
+
+(Do not be alarmed by the macros, their main purpose is to reduce the character count,
+as having `[[no_unique_address]]` and a long type name isn't all that informative in this context.)
+```cpp
+#include <bitfilled/bitfilled.hpp>
+struct myint : bitfilled::host_integer<unsigned>
 {
-    bool boolean : 1;
-    std::endian enumerated : 2;
-    std::int32_t integer : 5;
+    BF_BITS(bool, 0) boolean; // 1 bit at offset 0
+    BF_BITS(std::memory_order, 1, 3) enumerated; // 3 bits at offset 1
+    BF_BITSET(bool, 1, 16, 4) bitset; // 16 * 1 bits at offset 4
 };
 ```
 
-We can manipulate each field as normal members of `struct legacy`, their values don't cross bit boundaries,
-the signed integers even get sign extended, that's all well.
-There are a number of drawbacks to using standard bitfields, such as:
-1. Lack of standardization (and thus portability),
-a C++ compiler implementation can freely decide how these bits are stored in memory
-(see also [bitfield traits](./bitfilled/bitfield_traits.hpp) for an overview).
-2. Lack of flexibility,
-e.g. they may only have integral or enum type,
-they cannot be passed by reference,
-nor can they be organized into arrays, etc.
+These fields can be accesses as regular members, however their value is stored inside the containing class's (superclass's) memory. Bit field set elements are accessible via `operator[]`.
 
-This is a problem in many use cases involving bit-fields. So let's solve that:
+I encourage everyone to try it online:
+https://godbolt.org/z/bba7a8sTT
+
+### Register bit fields
+
+Let's look at a more advanced use-case, memory-mapped register definition.
+We will use the SysTick timer, found in most popular ARM MCUs:
 
 ```cpp
-struct nextgen : bitfilled::host_integer<std::uint8_t>
-{
-    BF_COPY_SUPERCLASS(nextgen)
-    BF_BITS(bool, 0) boolean;
-    BF_BITS(std::endian, 1, 2) enumerated;
-    BF_BITS(std::int32_t, 3, 7) integer;
-};
+#include <bitfilled/bitfilled.hpp>
+struct systick {
+  struct csr : BF_MMREG(std::uint32_t, rw) {
+    BF_COPY_SUPERCLASS(csr)
+    BF_MMREGBITS(bool, r, 16) COUNTFLAG;
+    BF_MMREGBITS(bool, rw, 2) CLKSOURCE;
+    BF_MMREGBITS(bool, rw, 1) TICKINT;
+    BF_MMREGBITS(bool, rw, 0) ENABLE;
+  } CSR;
+  struct rvr : BF_MMREG(std::uint32_t, rw) {
+    BF_COPY_SUPERCLASS(rvr)
+    BF_MMREGBITS(bool, rw, 0, 23) RELOAD; // optional, same as accessing the register itself
+  } RVR;
+  struct cvr : BF_MMREG(std::uint32_t, rw) {
+    BF_COPY_SUPERCLASS(cvr)
+    BF_MMREGBITS(bool, rw, 0, 23) CURRENT; // any write clears the field and COUNTFLAG to 0
+  } CVR;
+  struct calib : BF_MMREG(std::uint32_t, r) {
+    BF_COPY_SUPERCLASS(calib)
+    BF_MMREGBITS(bool, r, 31) NOREF;
+    BF_MMREGBITS(bool, r, 30) SKEW;
+    BF_MMREGBITS(bool, r, 0, 23) TENMS;
+  } CALIB;
+} & SYSTICK = *reinterpret_cast<volatile systick*>(SysTick_BASE);
 ```
 
-Our `nextgen` type's bit-fields work with the exact same syntax as their `legacy` counterparts.
-The difference here is that a `nextgen` object can be converted to and from any `uint8_t` type,
-no more explicit casting necessary to get the underlying integer type.
-One thing to note is that the nextgen fields have absolute bit offsets, as opposed to the legacy
-fields (which in turn only have a bit size specifier).
-This characteristic of the behavior also means that nextgen's bit-fields can be made to overlap one another.
+The code is self-explanatory, and provides an accurate interface to the hardware, by accessing the `SYSTICK` reference. As an example, the `COUNTFLAG` bit is read-only in an otherwise read-write register, which is reflected in its definition, and consequently assigning a value to this member is a compile-time error. The same is true for the `CALIB` register, and all its fields.
+
+A fully functional MM I/O example is available [here][bitfilled-stm32f4],
+where the **significant** code size savings are also illustrated.
+
+The project also comes with a [python code generator](tools/svd2mmregmap.py) (draft version),
+that let's you create register map definition out of CMSIS SVD files.
 
 ## Theory of operation
 
@@ -70,16 +160,11 @@ but rather whichever member is preceeding them in the encapsulating type layout.
 Therefore the encapsulating type must have a preceeding member variable for bit-field use,
 and the bitfilled members must be made aware of this member variable's type - this is what the operators are achieving.
 Mismatches between the storage member variable and the operators type is impossible to catch at compile time,
-therefore it is recommended to use predefined helper base classes such as `bitfilled::host_integer` and `bitfilled::mmreg`,
+therefore it is necessary to use predefined helper base classes such as `bitfilled::host_integer` and `bitfilled::mmreg`,
 instead of defining the storage member variable and the operators independently.
-
-## Memory mapped registers
-
-This library goes beyond simple bit-field manipulation by providing an accurate and easy-to-use API
-for memory-mapped register and bit-field manipulation, including access limitations on all levels,
-ensuring safe and optimized use.
 
 [stdbitfield]: https://en.cppreference.com/w/cpp/language/bit_field
 [no_unique_address]: https://en.cppreference.com/w/cpp/language/attributes/no_unique_address
 [property wiki]: https://en.wikipedia.org/wiki/Property_(programming)
 [armcortexmbitband]: https://atadiat.com/en/e-bit-banding-explained-a-feature-of-arm-cortex-m3/
+[bitfilled-stm32f4]: https://github.com/IntergatedCircuits/bitfilled-stm32f4
