@@ -29,7 +29,7 @@ struct eightbits : public host_integer<std::uint8_t>
 
     BF_BITS(std::uint8_t, 0, 7) overlapping;
 
-    BF_BITSET(std::int32_t, 2, 3, 1) signs;
+    BF_BITSET(std::int32_t, 2, 3, 1) signs BF_BITSET_POSTFIX;
 };
 static_assert(sizeof(eightbits::superclass) == sizeof(eightbits));
 
@@ -128,14 +128,17 @@ suite variable_bits = []
         var1.integer = 1;
         var2.integer = var1.integer;
 #endif
-        expect(var1 == (1 << var1.integer.offset()));
-        expect(var2 == (1 << var2.integer.offset()));
+#ifndef _MSC_VER
+        static_assert(var1.integer.offset() == 3);
+#endif
+        expect(var1 == (1 << 3));
+        expect(var2 == (1 << 3));
         expect(var2.integer == var1.integer);
         var1.integer = 2;
         var2.integer = var1.integer;
         expect(var2.integer == var1.integer);
     };
-
+#ifndef _MSC_VER
     "variable set assignment"_test = []
     {
         eightbits var1{0}, var2{0xff};
@@ -149,4 +152,5 @@ suite variable_bits = []
         expect(that % var1.signs[1] == -2);
         expect(that % var1.signs[2] == -2);
     };
+#endif
 };

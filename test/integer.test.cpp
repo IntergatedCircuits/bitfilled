@@ -17,8 +17,12 @@ struct packed_integer_with_bfs : packed_integer<ENDIAN, SIZE, T>
 {
     using base_type = packed_integer<ENDIAN, SIZE, T>;
     using base_type::operator=;
+#ifdef _MSC_VER
+    using base_type::_get_field;
+    using base_type::_set_field;
+#endif
     using bf_ops = base_type::bf_ops;
-    [[no_unique_address]] ::bitfilled::bitfield<unsigned, bf_ops, 0, 15> halfword{};
+    BF_BITS(unsigned, 0, 15) halfword;
 };
 
 suite integer = []

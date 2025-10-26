@@ -194,6 +194,7 @@ struct packed_integer
     {
         return storage_.template to_integral<value_type>(endianness);
     }
+    BITFILLED_OPS_FORWARDING
 };
 
 /// @brief  The host_integer class wraps an arithmetic type to allow subclassing it
@@ -214,6 +215,7 @@ struct host_integer
         raw_ = other;
         return *this;
     }
+    BITFILLED_OPS_FORWARDING
 
   private:
     T raw_{};

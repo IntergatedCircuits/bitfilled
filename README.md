@@ -8,7 +8,8 @@ with important features on the horizon. [Feedback](https://github.com/Intergated
 
 What makes bitfilled different from the language standard's [bit fields][stdbitfield]?
 
-1. **Portability** - regardless of platform or toolchain, the code behavior is the same (**except MSVC**, as it refuses to implement `[[no_unique_address]]`)
+1. **Portability** - regardless of platform or toolchain, the code behavior is the same
+(**except MSVC**, as it refuses to implement `[[no_unique_address]]`, so instead a compatible alternative is implemented with `__declspec(property())`)
 2. **Performance** - optimized binary is identical to standard bit fields
 3. **Flexibility** - allows bit fields on custom types, bit field arrays, and customizing bit operations (e.g. bit-banding)
 
@@ -83,12 +84,12 @@ Some examples are due:
 (Do not be alarmed by the macros, their main purpose is to reduce the character count,
 as having `[[no_unique_address]]` and a long type name isn't all that informative in this context.)
 ```cpp
-#include <bitfilled/bitfilled.hpp>
+#include <bitfilled.hpp>
 struct myint : bitfilled::host_integer<unsigned>
 {
     BF_BITS(bool, 0) boolean; // 1 bit at offset 0
     BF_BITS(std::memory_order, 1, 3) enumerated; // 3 bits at offset 1
-    BF_BITSET(bool, 1, 16, 4) bitset; // 16 * 1 bits at offset 4
+    BF_BITSET(bool, 1, 16, 4) bitset BF_BITSET_POSTFIX; // 16 * 1 bits at offset 4
 };
 ```
 
@@ -103,7 +104,7 @@ Let's look at a more advanced use-case, memory-mapped register definition.
 We will use the SysTick timer, found in most popular ARM MCUs:
 
 ```cpp
-#include <bitfilled/bitfilled.hpp>
+#include <bitfilled.hpp>
 struct systick {
   struct csr : BF_MMREG(std::uint32_t, rw) {
     BF_COPY_SUPERCLASS(csr)

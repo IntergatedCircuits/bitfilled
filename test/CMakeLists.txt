@@ -6,9 +6,9 @@ add_executable(${PROJECT_NAME}-test main.cpp)
 target_sources(${PROJECT_NAME}-test
     PRIVATE
         integer.test.cpp
-        mmreg.test.cpp
         size.test.cpp
         variable_bits.test.cpp
+        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:mmreg.test.cpp>
 )
 target_link_libraries(${PROJECT_NAME}-test
     PRIVATE
@@ -17,6 +17,9 @@ target_link_libraries(${PROJECT_NAME}-test
 )
 add_test(NAME ${PROJECT_NAME}-test COMMAND ${PROJECT_NAME}-test)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    return()
+endif()
 
 # https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html
 # https://embeddedartistry.com/blog/2023/09/20/leveraging-your-toolchain-to-improve-security/

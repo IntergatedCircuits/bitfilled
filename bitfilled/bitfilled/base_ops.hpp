@@ -3,6 +3,7 @@
 #define __BITFILLED_BASE_OPS_HPP__
 
 #include "bitfilled/access.hpp"
+#include "bitfilled/macros.hpp"
 #include "bitfilled/size.hpp"
 
 namespace bitfilled
@@ -15,6 +16,14 @@ namespace bitfilled
 #else
 #define BITFILLED_ASSIGN_RETURN_DECL(EXPR) void
 #define BITFILLED_ASSIGN_RETURN_EXPR(EXPR)
+#endif
+
+#if _MSC_VER
+#define BITFILLED_FIELD_PROPS_PARAM_T T
+#define BITFILLED_FIELDSET_PROPS_PARAM_T T
+#else
+#define BITFILLED_FIELD_PROPS_PARAM_T bitfield_props<FIRST_BIT, LAST_BIT>
+#define BITFILLED_FIELDSET_PROPS_PARAM_T regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>
 #endif
 
 /// @brief  copy const-volatile qualifiers from one reference type to another
@@ -156,99 +165,106 @@ struct base
 
       public:
         template <std::size_t FIRST_BIT, std::size_t LAST_BIT, typename TVal>
-        static void set_field(bitfield_props<FIRST_BIT, LAST_BIT>& bf, TVal value)
+        static void set_field(BITFILLED_FIELD_PROPS_PARAM_T& bf, TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
             const auto v = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
-                setter(bf, bf.position_field(v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::position_field(v));
             }
             else
             {
-                setter(bf, bf.insert_field(getter(bf), v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::insert_field(getter(bf), v));
             }
         }
         template <std::size_t FIRST_BIT, std::size_t LAST_BIT, typename TVal>
-        static void set_field(volatile bitfield_props<FIRST_BIT, LAST_BIT>& bf, TVal value)
+        static void set_field(volatile BITFILLED_FIELD_PROPS_PARAM_T& bf, TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
             const auto v = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
-                setter(bf, bf.position_field(v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::position_field(v));
             }
             else
             {
-                setter(bf, bf.insert_field(getter(bf), v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::insert_field(getter(bf), v));
             }
         }
 
         template <typename TVal, std::size_t FIRST_BIT, std::size_t LAST_BIT>
-        static TVal get_field(const bitfield_props<FIRST_BIT, LAST_BIT>& bf)
+        static TVal get_field(const BITFILLED_FIELD_PROPS_PARAM_T& bf)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x = static_cast<TVal>(bf.extract_field(getter(bf)));
-            return bf.sign_extend(x);
+            auto x =
+                static_cast<TVal>(bitfield_props<FIRST_BIT, LAST_BIT>::extract_field(getter(bf)));
+            return bitfield_props<FIRST_BIT, LAST_BIT>::sign_extend(x);
         }
         template <typename TVal, std::size_t FIRST_BIT, std::size_t LAST_BIT>
-        static TVal get_field(const volatile bitfield_props<FIRST_BIT, LAST_BIT>& bf)
+        static TVal get_field(const volatile BITFILLED_FIELD_PROPS_PARAM_T& bf)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x = static_cast<TVal>(bf.extract_field(getter(bf)));
-            return bf.sign_extend(x);
+            auto x =
+                static_cast<TVal>(bitfield_props<FIRST_BIT, LAST_BIT>::extract_field(getter(bf)));
+            return bitfield_props<FIRST_BIT, LAST_BIT>::sign_extend(x);
         }
 
         template <std::size_t ITEM_SIZE, std::size_t ITEM_COUNT, std::size_t OFFSET, typename TVal>
-        static void set_item(regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>& bf,
-                             std::size_t index, TVal value)
+        static void set_item(BITFILLED_FIELDSET_PROPS_PARAM_T& bf, std::size_t index, TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
             const auto v = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
-                setter(bf, bf.position_field(v, index));
+                setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::position_field(
+                               v, index));
             }
             else
             {
-                setter(bf, bf.insert_field(getter(bf), v, index));
+                setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::insert_field(
+                               getter(bf), v, index));
             }
         }
         template <std::size_t ITEM_SIZE, std::size_t ITEM_COUNT, std::size_t OFFSET, typename TVal>
-        static void set_item(volatile regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>& bf,
-                             std::size_t index, TVal value)
+        static void set_item(volatile BITFILLED_FIELDSET_PROPS_PARAM_T& bf, std::size_t index,
+                             TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
             const auto v = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
-                setter(bf, bf.position_field(v, index));
+                setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::position_field(
+                               v, index));
             }
             else
             {
-                setter(bf, bf.insert_field(getter(bf), v, index));
+                setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::insert_field(
+                               getter(bf), v, index));
             }
         }
 
         template <typename TVal, std::size_t ITEM_SIZE, std::size_t ITEM_COUNT, std::size_t OFFSET>
-        static TVal get_item(const regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>& bf,
-                             std::size_t index)
+        static TVal get_item(const BITFILLED_FIELDSET_PROPS_PARAM_T& bf, std::size_t index)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x = static_cast<TVal>(bf.extract_field(getter(bf), index));
-            return bf.sign_extend(x);
+            auto x = static_cast<TVal>(
+                regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::extract_field(getter(bf),
+                                                                                   index));
+            return regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::sign_extend(x);
         }
         template <typename TVal, std::size_t ITEM_SIZE, std::size_t ITEM_COUNT, std::size_t OFFSET>
-        static TVal get_item(const volatile regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>& bf,
-                             std::size_t index)
+        static TVal get_item(const volatile BITFILLED_FIELDSET_PROPS_PARAM_T& bf, std::size_t index)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x = static_cast<TVal>(bf.extract_field(getter(bf), index));
-            return bf.sign_extend(x);
+            auto x = static_cast<TVal>(
+                regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::extract_field(getter(bf),
+                                                                                   index));
+            return regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::sign_extend(x);
         }
     };
 };
