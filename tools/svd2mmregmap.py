@@ -38,7 +38,7 @@ def generate_peripheral(peripheral, bitband):
     # TODO: in the first round of iteration, generate enum types where enumeratedValues is provided
     # also de-duplicate enum types across registers
 
-    nametrim = peripheral.name + "_"
+    nametrim = peripheral_name + "_"
     offset = 0
     for register in peripheral.get_registers():
         # filling gaps in the register map with reserved
