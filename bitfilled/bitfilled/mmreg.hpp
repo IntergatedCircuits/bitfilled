@@ -127,6 +127,12 @@ struct mmreg : public detail::accesscondition<ACCESS, detail::mmr_r<T>, detail::
     constexpr mmreg& operator=(const mmreg&)
         requires(!is_readwrite<ACCESS>)
     = delete;
+    constexpr mmreg(const mmreg&)
+        requires(is_readwrite<ACCESS>)
+    = default;
+    constexpr mmreg& operator=(const mmreg&)
+        requires(is_readwrite<ACCESS>)
+    = default;
 
     BITFILLED_OPS_FORWARDING
 };

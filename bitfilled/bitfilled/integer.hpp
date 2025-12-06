@@ -59,7 +59,10 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
     using base_type::operator=;
 
     constexpr integer_storage() : base_type() {}
-
+    constexpr explicit integer_storage(const sized_unsigned_t<1> (&arr)[SIZE])
+    {
+        std::copy_n(arr, SIZE, base_type::data());
+    }
     template <std::integral T>
     constexpr explicit integer_storage(T value, std::endian endianness = std::endian::native)
         : base_type()
@@ -185,6 +188,8 @@ struct packed_integer
 
     constexpr packed_integer() : storage_() {}
     constexpr packed_integer(value_type value) : storage_(value, endianness) {}
+    constexpr explicit packed_integer(const sized_unsigned_t<1> (&arr)[SIZE]) : storage_(arr) {}
+
     constexpr packed_integer& operator=(value_type value)
     {
         storage_ = integer_storage<SIZE>(value, endianness);
@@ -194,6 +199,9 @@ struct packed_integer
     {
         return storage_.template to_integral<value_type>(endianness);
     }
+    constexpr std::array<sized_unsigned_t<1>, SIZE> to_array() { return storage_; }
+    constexpr const std::array<sized_unsigned_t<1>, SIZE>& as_array() const { return storage_; }
+
     BITFILLED_OPS_FORWARDING
 };
 
