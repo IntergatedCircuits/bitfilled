@@ -14,7 +14,7 @@ namespace bitfilled
 /// @tparam T the value's integral type
 /// @param  c the input value
 /// @return the necessary byte size to store the value
-template <std::integral T>
+template <typename T>
 constexpr inline std::size_t byte_width(T c)
 {
     if constexpr (std::is_signed_v<T>)
