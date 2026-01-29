@@ -59,6 +59,8 @@ target_compile_options(${PROJECT_NAME}-test
             -Wduplicated-branches
             #-Wswitch-default
             -Wcast-align=strict
+            -Wno-error=maybe-uninitialized
+            -Wno-error=uninitialized
         >
         $<$<CXX_COMPILER_ID:Clang>:
             -Wshift-sign-overflow
