@@ -25,7 +25,7 @@ struct packed_integer_with_bfs : packed_integer<ENDIAN, SIZE, T>
     BF_BITS(unsigned, 0, 15) halfword;
 };
 
-suite integer = []
+const suite integer = []
 {
     "integer_storage"_test = []<class TestType>
     {
@@ -78,7 +78,7 @@ suite integer = []
         constexpr uint32_t u32_ = 0x12345678;
         constexpr packed_integer<TestType::endianness, 4> pus4{u32_};
         static_assert(pus4 == u32_);
-        constexpr int32_t i32_ = (int32_t)0x87654321;
+        constexpr auto i32_ = (int32_t)0x87654321;
         constexpr packed_integer<TestType::endianness, 4, int32_t> ps4{i32_};
         static_assert(ps4 == i32_);
 #endif

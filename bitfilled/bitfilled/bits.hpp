@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-#ifndef __BITFILLED_BITS_HPP__
-#define __BITFILLED_BITS_HPP__
+#pragma once
 
 #include "bitfilled/base_ops.hpp"
 
@@ -32,6 +31,10 @@ struct regbitfield_reference : public T::props_type
 
   public:
     static constexpr enum access access() { return T::access(); }
+
+    ~regbitfield_reference() = default;
+    regbitfield_reference(regbitfield_reference&&) = delete;
+    regbitfield_reference& operator=(regbitfield_reference&&) = delete;
 
     BITFILLED_ASSIGN_RETURN_DECL(auto&)
     operator=(value_type other)
@@ -102,6 +105,10 @@ struct regbitfield
         *this = other;
     }
 
+    ~regbitfield() = default;
+    regbitfield(regbitfield&&) = delete;
+    regbitfield& operator=(regbitfield&&) = delete;
+
     BITFILLED_ASSIGN_RETURN_DECL(auto)
     operator=(T other)
         requires(is_writeable<ACCESS>)
@@ -148,8 +155,8 @@ struct regbitfield
     operator=(const regbitfield & other)
         requires(is_readwrite<ACCESS>)
     {
-        auto v = static_cast<T>(other);
-        TOps::set_field((props_type&)*this, v);
+        auto value = static_cast<T>(other);
+        TOps::set_field((props_type&)*this, value);
         return BITFILLED_ASSIGN_RETURN_EXPR(
             (regbitfield_reference<regbitfield>{(props_type&)*this}));
     }
@@ -158,8 +165,8 @@ struct regbitfield
     operator=(const regbitfield & other) volatile
         requires(is_readwrite<ACCESS>)
     {
-        auto v = static_cast<T>(other);
-        TOps::set_field((volatile props_type&)*this, v);
+        auto value = static_cast<T>(other);
+        TOps::set_field((volatile props_type&)*this, value);
         return BITFILLED_ASSIGN_RETURN_EXPR(
             (regbitfield_reference<regbitfield, true>{(volatile props_type&)*this}));
     }
@@ -181,7 +188,13 @@ struct regbitfieldset
 
     static constexpr enum access access() { return ACCESS; }
 
+    static constexpr std::size_t size() { return ITEM_COUNT; }
+
     constexpr regbitfieldset() = default;
+
+    ~regbitfieldset() = default;
+    regbitfieldset(regbitfieldset&&) = delete;
+    regbitfieldset& operator=(regbitfieldset&&) = delete;
 
     regbitfieldset(const regbitfieldset&)
         requires(!is_readwrite<ACCESS>)
@@ -200,6 +213,7 @@ struct regbitfieldset
         requires(is_readwrite<ACCESS>)
     {
         using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + ITEM_COUNT * ITEM_SIZE - 1>;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         reinterpret_cast<bf_type&>(*this) = reinterpret_cast<const bf_type&>(other);
         return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<bf_type&>(*this));
     }
@@ -209,6 +223,7 @@ struct regbitfieldset
         requires(is_readwrite<ACCESS>)
     {
         using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + ITEM_COUNT * ITEM_SIZE - 1>;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         reinterpret_cast<volatile bf_type&>(*this) = reinterpret_cast<const bf_type&>(other);
         return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<volatile bf_type&>(*this));
     }
@@ -255,5 +270,3 @@ template <typename T, typename TOps, std::size_t ITEM_SIZE, std::size_t ITEM_COU
 using bitfieldset = regbitfieldset<T, TOps, access::readwrite, ITEM_SIZE, ITEM_COUNT, OFFSET>;
 
 } // namespace bitfilled
-
-#endif // __BITFILLED_BITS_HPP__

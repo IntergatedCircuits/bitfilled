@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-#ifndef __BITFILLED_BITBAND_OPS_HPP__
-#define __BITFILLED_BITBAND_OPS_HPP__
+#pragma once
 
 #include "bitfilled/base_ops.hpp"
 
@@ -42,8 +41,8 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
-                const auto v = static_cast<base_ops::int_type>(value);
-                bitmemory(bf, FIRST_BIT) = v;
+                const auto intval = static_cast<base_ops::int_type>(value);
+                bitmemory(bf, FIRST_BIT) = intval;
             }
             else
             {
@@ -56,8 +55,8 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
-                const auto v = static_cast<base_ops::int_type>(value);
-                bitmemory(bf, FIRST_BIT) = v;
+                const auto intval = static_cast<base_ops::int_type>(value);
+                bitmemory(bf, FIRST_BIT) = intval;
             }
             else
             {
@@ -70,8 +69,8 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
-                auto x = static_cast<TVal>(bitmemory(bf, FIRST_BIT));
-                return bf.sign_extend(x);
+                auto typeval = static_cast<TVal>(bitmemory(bf, FIRST_BIT));
+                return bf.sign_extend(typeval);
             }
             else
             {
@@ -84,8 +83,8 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
-                auto x = static_cast<TVal>(bitmemory(bf, FIRST_BIT));
-                return bf.sign_extend(x);
+                auto typeval = static_cast<TVal>(bitmemory(bf, FIRST_BIT));
+                return bf.sign_extend(typeval);
             }
             else
             {
@@ -99,8 +98,8 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
-                const auto v = static_cast<base_ops::int_type>(value);
-                bitmemory(bf, OFFSET + index) = v;
+                const auto intval = static_cast<base_ops::int_type>(value);
+                bitmemory(bf, OFFSET + index) = intval;
             }
             else
             {
@@ -114,8 +113,8 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
-                const auto v = static_cast<base_ops::int_type>(value);
-                bitmemory(bf, OFFSET + index) = v;
+                const auto intval = static_cast<base_ops::int_type>(value);
+                bitmemory(bf, OFFSET + index) = intval;
             }
             else
             {
@@ -129,8 +128,8 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
-                auto x = static_cast<TVal>(bitmemory(bf, OFFSET + index));
-                return bf.sign_extend(x);
+                auto typeval = static_cast<TVal>(bitmemory(bf, OFFSET + index));
+                return bf.sign_extend(typeval);
             }
             else
             {
@@ -144,8 +143,8 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
-                auto x = static_cast<TVal>(bitmemory(bf, OFFSET + index));
-                return bf.sign_extend(x);
+                auto typeval = static_cast<TVal>(bitmemory(bf, OFFSET + index));
+                return bf.sign_extend(typeval);
             }
             else
             {
@@ -156,5 +155,3 @@ struct bitband
 };
 
 } // namespace bitfilled
-
-#endif // __BITFILLED_BITBAND_OPS_HPP__

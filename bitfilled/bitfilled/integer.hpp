@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-#ifndef __BITFILLED_INTEGER_HPP__
-#define __BITFILLED_INTEGER_HPP__
+#pragma once
 
 #include <algorithm>
 #include <array>
@@ -23,26 +22,26 @@ struct sized_integer
 template <std::size_t SIZE>
 struct sized_integer<SIZE, std::enable_if_t<SIZE == 1>>
 {
-    typedef std::uint8_t unsigned_type;
-    typedef std::int8_t signed_type;
+    using unsigned_type = std::uint8_t;
+    using signed_type = std::int8_t;
 };
 template <std::size_t SIZE>
 struct sized_integer<SIZE, std::enable_if_t<SIZE == 2>>
 {
-    typedef std::uint16_t unsigned_type;
-    typedef std::int16_t signed_type;
+    using unsigned_type = std::uint16_t;
+    using signed_type = std::int16_t;
 };
 template <std::size_t SIZE>
 struct sized_integer<SIZE, std::enable_if_t<SIZE == 4>>
 {
-    typedef std::uint32_t unsigned_type;
-    typedef std::int32_t signed_type;
+    using unsigned_type = std::uint32_t;
+    using signed_type = std::int32_t;
 };
 template <std::size_t SIZE>
 struct sized_integer<SIZE, std::enable_if_t<SIZE == 8>>
 {
-    typedef std::uint64_t unsigned_type;
-    typedef std::int64_t signed_type;
+    using unsigned_type = std::uint64_t;
+    using signed_type = std::int64_t;
 };
 
 template <std::size_t SIZE>
@@ -59,6 +58,7 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
     using base_type::operator=;
 
     constexpr integer_storage() : base_type() {}
+    // NOLINTNEXTLINE
     constexpr explicit integer_storage(const sized_unsigned_t<1> (&arr)[SIZE])
     {
         std::copy_n(arr, SIZE, base_type::data());
@@ -114,7 +114,7 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
     }
 
     template <std::integral T>
-    constexpr T to_integral(std::endian endianness = std::endian::native) const
+    [[nodiscard]] constexpr T to_integral(std::endian endianness = std::endian::native) const
     {
         integer_storage<sizeof(T)> value_repr;
 
@@ -188,6 +188,7 @@ struct packed_integer
 
     constexpr packed_integer() : storage_() {}
     constexpr packed_integer(value_type value) : storage_(value, endianness) {}
+    // NOLINTNEXTLINE
     constexpr explicit packed_integer(const sized_unsigned_t<1> (&arr)[SIZE]) : storage_(arr) {}
 
     constexpr packed_integer& operator=(value_type value)
@@ -199,8 +200,11 @@ struct packed_integer
     {
         return storage_.template to_integral<value_type>(endianness);
     }
-    constexpr std::array<sized_unsigned_t<1>, SIZE> to_array() { return storage_; }
-    constexpr const std::array<sized_unsigned_t<1>, SIZE>& as_array() const { return storage_; }
+    [[nodiscard]] constexpr std::array<sized_unsigned_t<1>, SIZE> to_array() { return storage_; }
+    [[nodiscard]] constexpr const std::array<sized_unsigned_t<1>, SIZE>& as_array() const
+    {
+        return storage_;
+    }
 
     BITFILLED_OPS_FORWARDING
 };
@@ -237,5 +241,3 @@ struct host_integer
 };
 
 } // namespace bitfilled
-
-#endif // __BITFILLED_INTEGER_HPP__

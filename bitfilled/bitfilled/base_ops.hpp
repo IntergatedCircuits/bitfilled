@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-#ifndef __BITFILLED_BASE_OPS_HPP__
-#define __BITFILLED_BASE_OPS_HPP__
+#pragma once
 
 #include "bitfilled/access.hpp"
 #include "bitfilled/macros.hpp"
@@ -33,12 +32,12 @@ struct copy_cv_reference
 {
   private:
     using R = std::remove_reference_t<T>;
-    using U1 = std::conditional_t<std::is_const<R>::value, std::add_const_t<U>, U>;
-    using U2 = std::conditional_t<std::is_volatile<R>::value, std::add_volatile_t<U1>, U1>;
+    using U1 = std::conditional_t<std::is_const_v<R>, std::add_const_t<U>, U>;
+    using U2 = std::conditional_t<std::is_volatile_v<R>, std::add_volatile_t<U1>, U1>;
     using U3 =
-        std::conditional_t<std::is_lvalue_reference<T>::value, std::add_lvalue_reference_t<U2>, U2>;
+        std::conditional_t<std::is_lvalue_reference_v<T>, std::add_lvalue_reference_t<U2>, U2>;
     using U4 =
-        std::conditional_t<std::is_rvalue_reference<T>::value, std::add_rvalue_reference_t<U3>, U3>;
+        std::conditional_t<std::is_rvalue_reference_v<T>, std::add_rvalue_reference_t<U3>, U3>;
 
   public:
     using type = U4;
@@ -84,8 +83,8 @@ struct bitfield_props
             struct
             {
                 T field : size_bits();
-            } s{.field = v};
-            return s.field;
+            } storage{.field = v};
+            return storage.field;
         }
         return v;
     }
@@ -150,6 +149,7 @@ struct base
         template <typename Tptr>
         static void setter(Tptr& ptr, int_type v)
         {
+            // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
             if constexpr (std::is_void_v<decltype((copy_cv_t<Tptr&, T>)ptr = v)>)
             {
                 (copy_cv_t<Tptr&, T>)ptr = v;
@@ -159,6 +159,7 @@ struct base
                 // the assignment might return a volatile-qualified reference
                 // avoid reading it by keeping it a reference, and casting away the qualifier
                 // all this is to avoid warnings
+                // NOLINTNEXTLINE(readability-identifier-length)
                 [[maybe_unused]] auto& _ = const_cast<T&>((copy_cv_t<Tptr&, T>)ptr = v);
             }
         }
@@ -168,30 +169,30 @@ struct base
         static void set_field(BITFILLED_FIELD_PROPS_PARAM_T& bf, TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
-            const auto v = static_cast<int_type>(value);
+            const auto intval = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
-                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::position_field(v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::position_field(intval));
             }
             else
             {
-                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::insert_field(getter(bf), v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::insert_field(getter(bf), intval));
             }
         }
         template <std::size_t FIRST_BIT, std::size_t LAST_BIT, typename TVal>
         static void set_field(volatile BITFILLED_FIELD_PROPS_PARAM_T& bf, TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
-            const auto v = static_cast<int_type>(value);
+            const auto intval = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
-                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::position_field(v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::position_field(intval));
             }
             else
             {
-                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::insert_field(getter(bf), v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::insert_field(getter(bf), intval));
             }
         }
 
@@ -199,34 +200,34 @@ struct base
         static TVal get_field(const BITFILLED_FIELD_PROPS_PARAM_T& bf)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x =
+            auto typeval =
                 static_cast<TVal>(bitfield_props<FIRST_BIT, LAST_BIT>::extract_field(getter(bf)));
-            return bitfield_props<FIRST_BIT, LAST_BIT>::sign_extend(x);
+            return bitfield_props<FIRST_BIT, LAST_BIT>::sign_extend(typeval);
         }
         template <typename TVal, std::size_t FIRST_BIT, std::size_t LAST_BIT>
         static TVal get_field(const volatile BITFILLED_FIELD_PROPS_PARAM_T& bf)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x =
+            auto typeval =
                 static_cast<TVal>(bitfield_props<FIRST_BIT, LAST_BIT>::extract_field(getter(bf)));
-            return bitfield_props<FIRST_BIT, LAST_BIT>::sign_extend(x);
+            return bitfield_props<FIRST_BIT, LAST_BIT>::sign_extend(typeval);
         }
 
         template <std::size_t ITEM_SIZE, std::size_t ITEM_COUNT, std::size_t OFFSET, typename TVal>
         static void set_item(BITFILLED_FIELDSET_PROPS_PARAM_T& bf, std::size_t index, TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
-            const auto v = static_cast<int_type>(value);
+            const auto intval = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
                 setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::position_field(
-                               v, index));
+                               intval, index));
             }
             else
             {
                 setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::insert_field(
-                               getter(bf), v, index));
+                               getter(bf), intval, index));
             }
         }
         template <std::size_t ITEM_SIZE, std::size_t ITEM_COUNT, std::size_t OFFSET, typename TVal>
@@ -234,17 +235,17 @@ struct base
                              TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
-            const auto v = static_cast<int_type>(value);
+            const auto intval = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
                 setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::position_field(
-                               v, index));
+                               intval, index));
             }
             else
             {
                 setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::insert_field(
-                               getter(bf), v, index));
+                               getter(bf), intval, index));
             }
         }
 
@@ -252,23 +253,21 @@ struct base
         static TVal get_item(const BITFILLED_FIELDSET_PROPS_PARAM_T& bf, std::size_t index)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x = static_cast<TVal>(
+            auto typeval = static_cast<TVal>(
                 regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::extract_field(getter(bf),
                                                                                    index));
-            return regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::sign_extend(x);
+            return regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::sign_extend(typeval);
         }
         template <typename TVal, std::size_t ITEM_SIZE, std::size_t ITEM_COUNT, std::size_t OFFSET>
         static TVal get_item(const volatile BITFILLED_FIELDSET_PROPS_PARAM_T& bf, std::size_t index)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x = static_cast<TVal>(
+            auto typeval = static_cast<TVal>(
                 regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::extract_field(getter(bf),
                                                                                    index));
-            return regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::sign_extend(x);
+            return regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::sign_extend(typeval);
         }
     };
 };
 
 } // namespace bitfilled
-
-#endif // __BITFILLED_BASE_OPS_HPP__

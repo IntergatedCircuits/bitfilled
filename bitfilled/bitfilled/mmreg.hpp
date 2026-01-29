@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-#ifndef __BITFILLED_MMREG_HPP__
-#define __BITFILLED_MMREG_HPP__
+#pragma once
 
 #include "bitfilled/access.hpp"
 #include "bitfilled/integer.hpp"
@@ -45,13 +44,13 @@ struct mmr_r
     constexpr operator auto &() const volatile { return raw; }
 
   protected:
-    T raw{};
+    T raw{}; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
 };
 template <Integral T>
 struct mmr_w
 {
   protected:
-    T raw{};
+    T raw{}; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
 };
 template <Integral T>
 struct mmr_rw
@@ -62,7 +61,7 @@ struct mmr_rw
     constexpr operator auto &() const volatile { return raw; }
 
   protected:
-    T raw{};
+    T raw{}; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
 };
 } // namespace detail
 
@@ -88,6 +87,10 @@ struct mmreg : public detail::accesscondition<ACCESS, detail::mmr_r<T>, detail::
     {
         raw = other;
     }
+
+    ~mmreg() = default;
+    mmreg(mmreg&&) = delete;
+    mmreg& operator=(mmreg&&) = delete;
 
     constexpr static auto size() { return sizeof(raw); }
 
@@ -138,5 +141,3 @@ struct mmreg : public detail::accesscondition<ACCESS, detail::mmr_r<T>, detail::
 };
 
 } // namespace bitfilled
-
-#endif // __BITFILLED_MMREG_HPP__

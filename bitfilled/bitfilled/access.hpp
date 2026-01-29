@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-#ifndef __BITFILLED_ACCESS_HPP__
-#define __BITFILLED_ACCESS_HPP__
+#pragma once
 
 #include <cstdint>
 #include <type_traits>
@@ -21,12 +20,12 @@ enum class access : std::uint_fast8_t
     read_ephemeralwrite = 7, // writes don't get stored when read
 };
 
-inline constexpr enum access operator&(enum access lhs, enum access rhs)
+constexpr enum access operator&(enum access lhs, enum access rhs)
 {
     return static_cast<enum access>(static_cast<std::uint_fast8_t>(lhs) &
                                     static_cast<std::uint_fast8_t>(rhs));
 }
-inline constexpr enum access operator|(enum access lhs, enum access rhs)
+constexpr enum access operator|(enum access lhs, enum access rhs)
 {
     return static_cast<enum access>(static_cast<std::uint_fast8_t>(lhs) |
                                     static_cast<std::uint_fast8_t>(rhs));
@@ -50,5 +49,3 @@ inline constexpr bool is_ephemeralwrite =
     (ACCESS & access::read_ephemeralwrite) == access::read_ephemeralwrite;
 
 } // namespace bitfilled
-
-#endif // __BITFILLED_ACCESS_HPP__

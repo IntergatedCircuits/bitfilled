@@ -4,7 +4,7 @@
 using namespace bitfilled;
 using namespace boost::ut;
 
-suite size = []
+const suite size = []
 {
     "byte_width"_test = []
     {

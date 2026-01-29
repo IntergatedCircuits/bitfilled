@@ -6,7 +6,7 @@
 using namespace bitfilled;
 using namespace boost::ut;
 
-enum enumeration
+enum enumeration : std::uint8_t
 {
     ENUMERATOR_0 = 0,
     ENUMERATOR_1 = 1,
@@ -44,16 +44,18 @@ struct mmr : public bitfilled::mmreg<std::uint8_t, ACCESS>
 };
 static_assert(sizeof(mmr<access::rw>) == sizeof(std::uint8_t));
 
-suite mmreg = []
+const suite mmreg = []
 {
     "mmregs assignment"_test = []
     {
-        std::uint8_t v[static_cast<unsigned>(access::rw) + 1]{0, 42, 0, 0};
+        std::uint8_t values[static_cast<unsigned>(access::rw) + 1]{0, 42, 0, 0};
         volatile mmr<access::rw> rw1;
         auto& rw2 =
-            reinterpret_cast<volatile mmr<access::rw>&>(v[static_cast<unsigned>(access::rw)]);
-        auto& ro = reinterpret_cast<volatile mmr<access::r>&>(v[static_cast<unsigned>(access::r)]);
-        auto& wo = reinterpret_cast<volatile mmr<access::w>&>(v[static_cast<unsigned>(access::w)]);
+            reinterpret_cast<volatile mmr<access::rw>&>(values[static_cast<unsigned>(access::rw)]);
+        auto& ro =
+            reinterpret_cast<volatile mmr<access::r>&>(values[static_cast<unsigned>(access::r)]);
+        auto& wo =
+            reinterpret_cast<volatile mmr<access::w>&>(values[static_cast<unsigned>(access::w)]);
 
 #if BITFILLED_ASSIGN_RETURNS_REF
         wo = rw1 = rw2 = ro;
@@ -69,14 +71,16 @@ suite mmreg = []
 
     "mmregs field assignment"_test = []
     {
-        std::uint8_t v[static_cast<unsigned>(access::rw) + 1]{};
+        std::uint8_t values[static_cast<unsigned>(access::rw) + 1]{};
         volatile mmr<access::rw> rw1;
         auto& rw2 =
-            reinterpret_cast<volatile mmr<access::rw>&>(v[static_cast<unsigned>(access::rw)]);
-        auto& ro = reinterpret_cast<volatile mmr<access::r>&>(v[static_cast<unsigned>(access::r)]);
-        auto& wo = reinterpret_cast<volatile mmr<access::w>&>(v[static_cast<unsigned>(access::w)]);
+            reinterpret_cast<volatile mmr<access::rw>&>(values[static_cast<unsigned>(access::rw)]);
+        auto& ro =
+            reinterpret_cast<volatile mmr<access::r>&>(values[static_cast<unsigned>(access::r)]);
+        auto& wo =
+            reinterpret_cast<volatile mmr<access::w>&>(values[static_cast<unsigned>(access::w)]);
 
-        v[static_cast<unsigned>(access::r)] = 3 << mmr<access::rw>::integer_t::offset();
+        values[static_cast<unsigned>(access::r)] = 3 << mmr<access::rw>::integer_t::offset();
 
         int integer = ro.integer;
         expect(ro.integer == 3);

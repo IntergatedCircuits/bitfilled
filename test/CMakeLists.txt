@@ -25,19 +25,14 @@ endif()
 # https://embeddedartistry.com/blog/2023/09/20/leveraging-your-toolchain-to-improve-security/
 target_link_options(${PROJECT_NAME}-test
     PRIVATE
-        #-fsanitize=address
-        -fsanitize=signed-integer-overflow
-        -fsanitize=bounds
+        -fsanitize=bounds,signed-integer-overflow,address,undefined
 )
 target_compile_options(${PROJECT_NAME}-test
     PRIVATE
         -ftrivial-auto-var-init=pattern
         -fstack-protector-all
-        #-fsanitize=address
         -fno-omit-frame-pointer
-        #-fsanitize=undefined
-        -fsanitize=signed-integer-overflow
-        -fsanitize=bounds
+        -fsanitize=bounds,signed-integer-overflow,address,undefined
         -Wall
         -Wextra
         -Werror
@@ -79,3 +74,12 @@ target_compile_options(${PROJECT_NAME}-test
         >
         -Wno-unknown-pragmas
 )
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
+    set_target_properties(${PROJECT_NAME}-test
+        PROPERTIES
+            CXX_CLANG_TIDY "${CLANG_TIDY_EXE}"
+    )
+    message(STATUS "Enabled clang-tidy for ${PROJECT_NAME}-test")
+endif()

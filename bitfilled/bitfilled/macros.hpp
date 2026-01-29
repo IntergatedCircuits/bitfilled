@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-#ifndef __BITFILLED_MACROS_HPP__
-#define __BITFILLED_MACROS_HPP__
+#pragma once
 
 #define BF_CONCAT_IMPL(X, Y) X##Y
 #define BF_CONCAT(X, Y) BF_CONCAT_IMPL(X, Y)
@@ -112,5 +111,3 @@
     const ::std::array<::bitfilled::sized_unsigned_t<WIDTH>, SIZE> BF_UNIQUE_NAME(_reserved_);     \
                                                                                                    \
   public:
-
-#endif // __BITFILLED_MACROS_HPP__
