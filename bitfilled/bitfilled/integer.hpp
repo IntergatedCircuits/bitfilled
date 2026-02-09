@@ -176,8 +176,8 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
 template <std::endian ENDIAN, std::size_t SIZE, Integral T = sized_unsigned_t<std::bit_ceil(SIZE)>>
 struct packed_integer
 {
-  private:
-    integer_storage<SIZE> storage_;
+  protected:
+    integer_storage<SIZE> storage;
 
   public:
     using superclass = packed_integer;
@@ -186,24 +186,24 @@ struct packed_integer
 
     static constexpr auto endianness = ENDIAN;
 
-    constexpr packed_integer() : storage_() {}
-    constexpr packed_integer(value_type value) : storage_(value, endianness) {}
+    constexpr packed_integer() : storage() {}
+    constexpr packed_integer(value_type value) : storage(value, endianness) {}
     // NOLINTNEXTLINE
-    constexpr explicit packed_integer(const sized_unsigned_t<1> (&arr)[SIZE]) : storage_(arr) {}
+    constexpr explicit packed_integer(const sized_unsigned_t<1> (&arr)[SIZE]) : storage(arr) {}
 
     constexpr packed_integer& operator=(value_type value)
     {
-        storage_ = integer_storage<SIZE>(value, endianness);
+        storage = integer_storage<SIZE>(value, endianness);
         return *this;
     }
     constexpr operator value_type() const
     {
-        return storage_.template to_integral<value_type>(endianness);
+        return storage.template to_integral<value_type>(endianness);
     }
-    [[nodiscard]] constexpr std::array<sized_unsigned_t<1>, SIZE> to_array() { return storage_; }
+    [[nodiscard]] constexpr std::array<sized_unsigned_t<1>, SIZE> to_array() { return storage; }
     [[nodiscard]] constexpr const std::array<sized_unsigned_t<1>, SIZE>& as_array() const
     {
-        return storage_;
+        return storage;
     }
 
     BITFILLED_OPS_FORWARDING
