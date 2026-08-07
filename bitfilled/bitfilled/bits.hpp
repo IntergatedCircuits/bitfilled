@@ -212,7 +212,7 @@ struct regbitfieldset
     operator=(const regbitfieldset & other)
         requires(is_readwrite<ACCESS>)
     {
-        using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + ITEM_COUNT * ITEM_SIZE - 1>;
+        using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + (ITEM_COUNT * ITEM_SIZE) - 1>;
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         reinterpret_cast<bf_type&>(*this) = reinterpret_cast<const bf_type&>(other);
         return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<bf_type&>(*this));
@@ -222,7 +222,7 @@ struct regbitfieldset
     operator=(const regbitfieldset& other) volatile
         requires(is_readwrite<ACCESS>)
     {
-        using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + ITEM_COUNT * ITEM_SIZE - 1>;
+        using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + (ITEM_COUNT * ITEM_SIZE) - 1>;
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         reinterpret_cast<volatile bf_type&>(*this) = reinterpret_cast<const bf_type&>(other);
         return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<volatile bf_type&>(*this));

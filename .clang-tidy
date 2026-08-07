@@ -18,12 +18,16 @@ Checks: >
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   clang-analyzer-*,
   hicpp-*,
+  -hicpp-explicit-conversions,
+  -hicpp-signed-bitwise,
   portability-*,
   misc-*,
+  -misc-include-cleaner,
+  -misc-non-private-member-variables-in-classes,
+  -misc-unconventional-assign-operator
 
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
-ExcludePaths: '.*\\.test\\.cpp$'
 FormatStyle: file
 CheckOptions:
   - key:             readability-braces-around-statements.ShortStatementLines

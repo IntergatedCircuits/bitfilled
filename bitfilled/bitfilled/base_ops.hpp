@@ -58,7 +58,7 @@ struct bitfield_props
     template <typename T = unsigned>
     constexpr static T mask()
     {
-        return ((1 << size_bits()) - 1);
+        return ((1U << size_bits()) - 1U);
     }
     template <typename T>
     constexpr static T extract_field(T memory)
@@ -83,7 +83,7 @@ struct bitfield_props
             struct
             {
                 T field : size_bits();
-            } storage{.field = v};
+            } const storage{.field = v};
             return storage.field;
         }
         return v;
@@ -108,7 +108,7 @@ struct regbitfieldset_props : public bitfield_props<OFFSET, ITEM_SIZE + OFFSET -
 
     constexpr static std::size_t offset(std::size_t index)
     {
-        return base::offset() + index * base::size_bits();
+        return base::offset() + (index * base::size_bits());
     }
     template <typename T>
     constexpr static T extract_field(T memory, std::size_t index)

@@ -70,7 +70,7 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
         // if the value is signed, fill the target with sign extend bytes
         if (std::is_signed_v<T> and (value < static_cast<T>(0)))
         {
-            std::fill(this->begin(), this->end(), 0xffu);
+            std::fill(this->begin(), this->end(), 0xffU);
         }
 
         // byteswap if the endian is not native
@@ -120,9 +120,9 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
 
         // if the value is signed, fill the target with sign extend bytes
         if (std::is_signed_v<T> and
-            ((endianness == std::endian::little ? this->back() : this->front()) & 0x80u))
+            ((endianness == std::endian::little ? this->back() : this->front()) & 0x80U))
         {
-            std::fill(value_repr.begin(), value_repr.end(), 0xffu);
+            std::fill(value_repr.begin(), value_repr.end(), 0xffU);
         }
 
         // transfer the bytes to the correct position
@@ -176,7 +176,7 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
 template <std::endian ENDIAN, std::size_t SIZE, Integral T = sized_unsigned_t<std::bit_ceil(SIZE)>>
 struct packed_integer
 {
-  protected:
+  protected: // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
     integer_storage<SIZE> storage;
 
   public:

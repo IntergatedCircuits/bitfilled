@@ -25,7 +25,7 @@ struct packed_integer_with_bfs : packed_integer<ENDIAN, SIZE, T>
     BF_BITS(unsigned, 0, 15) halfword;
 };
 
-const suite integer = []
+const suite<"integer"> integer = []
 {
     "integer_storage"_test = []<class TestType>
     {

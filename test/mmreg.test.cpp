@@ -44,7 +44,7 @@ struct mmr : public bitfilled::mmreg<std::uint8_t, ACCESS>
 };
 static_assert(sizeof(mmr<access::rw>) == sizeof(std::uint8_t));
 
-const suite mmreg = []
+const suite<"mmreg"> mmreg = []
 {
     "mmregs assignment"_test = []
     {

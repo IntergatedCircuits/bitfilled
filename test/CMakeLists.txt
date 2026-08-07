@@ -2,7 +2,8 @@ include(get_cpm)
 CPMAddPackage("gh:boost-ext/ut@2.3.1")
 include(CTest)
 
-add_executable(${PROJECT_NAME}-test main.cpp)
+add_library(${PROJECT_NAME}-build-test OBJECT main.cpp)
+add_executable(${PROJECT_NAME}-test)
 target_sources(${PROJECT_NAME}-test
     PRIVATE
         integer.test.cpp
@@ -10,9 +11,13 @@ target_sources(${PROJECT_NAME}-test
         variable_bits.test.cpp
         $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:mmreg.test.cpp>
 )
+target_link_libraries(${PROJECT_NAME}-build-test
+    PUBLIC
+        ${PROJECT_NAME}
+)
 target_link_libraries(${PROJECT_NAME}-test
     PRIVATE
-        ${PROJECT_NAME}
+        ${PROJECT_NAME}-build-test
         ut
 )
 add_test(NAME ${PROJECT_NAME}-test COMMAND ${PROJECT_NAME}-test)
@@ -78,8 +83,8 @@ target_compile_options(${PROJECT_NAME}-test
 )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
-    set_target_properties(${PROJECT_NAME}-test
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy" "clang-tidy-20")
+    set_target_properties(${PROJECT_NAME}-build-test
         PROPERTIES
             CXX_CLANG_TIDY "${CLANG_TIDY_EXE}"
     )

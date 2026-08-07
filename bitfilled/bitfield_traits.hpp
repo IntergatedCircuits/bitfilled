@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-#ifndef __BITFIELD_TRAITS_HPP__
-#define __BITFIELD_TRAITS_HPP__
+#pragma once
 
 #include <array>
 #include "bitfilled/size.hpp"
@@ -62,15 +61,16 @@ constexpr inline std::endian endianness = []() constexpr
     return x == 1 ? std::endian::little : std::endian::big;
 }();
 #else
-inline std::endian endianness = []()
+const inline std::endian endianness = []()
 {
     struct s
     {
-        char a : 1 = 1;
+        bool a : 1 = true;
         char b : 7 = 0;
-    } val;
-    static const auto x = std::bit_cast<std::array<char, bitfilled::aligned_size<s>>>(val).front();
-    return x == 1 ? std::endian::little : std::endian::big;
+    } const val;
+    static const auto ended =
+        std::bit_cast<std::array<char, bitfilled::aligned_size<s>>>(val).front();
+    return ended == 1 ? std::endian::little : std::endian::big;
 }();
 #endif
 
@@ -80,10 +80,8 @@ constexpr inline bool overflow_wraps = []() constexpr
     struct s
     {
         int a : 2;
-    } val{2};
+    } const val{2}; // NOLINT(clang-diagnostic-bitfield-constant-conversion)
     return val.a == -2;
 }();
 
 } // namespace bitfield_traits
-
-#endif // __BITFIELD_TRAITS_HPP__

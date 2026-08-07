@@ -33,7 +33,7 @@ struct eightbits : public host_integer<std::uint8_t>
 };
 static_assert(sizeof(eightbits::superclass) == sizeof(eightbits));
 
-suite variable_bits = []
+const suite<"variable_bits"> variable_bits = []
 {
     "variable default construct"_test = []
     {
