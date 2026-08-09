@@ -23,12 +23,12 @@ enum class access : std::uint_fast8_t
     read_ephemeralwrite = 7, // writes don't get stored when read
 };
 
-inline constexpr enum access operator&(enum access lhs, enum access rhs)
+constexpr enum access operator&(enum access lhs, enum access rhs)
 {
     return static_cast<enum access>(static_cast<std::uint_fast8_t>(lhs) &
                                     static_cast<std::uint_fast8_t>(rhs));
 }
-inline constexpr enum access operator|(enum access lhs, enum access rhs)
+constexpr enum access operator|(enum access lhs, enum access rhs)
 {
     return static_cast<enum access>(static_cast<std::uint_fast8_t>(lhs) |
                                     static_cast<std::uint_fast8_t>(rhs));
@@ -178,26 +178,26 @@ namespace bitfilled
 {
 /// @brief  Calculate the minimal number of bytes necessary to fit an integral value.
 /// @tparam T the value's integral type
-/// @param  c the input value
+/// @param  integral the input value
 /// @return the necessary byte size to store the value
-template <std::integral T>
-constexpr inline std::size_t byte_width(T c)
+template <typename T>
+constexpr std::size_t byte_width(T integral)
 {
     if constexpr (std::is_signed_v<T>)
     {
-        auto x = static_cast<std::int64_t>(c);
-        if ((x < std::numeric_limits<std::int32_t>::min()) or
-            (x > std::numeric_limits<std::int32_t>::max()))
+        auto sint = static_cast<std::int64_t>(integral);
+        if ((sint < std::numeric_limits<std::int32_t>::min()) or
+            (sint > std::numeric_limits<std::int32_t>::max()))
         {
             return 8;
         }
-        if ((x < std::numeric_limits<std::int16_t>::min()) or
-            (x > std::numeric_limits<std::int16_t>::max()))
+        if ((sint < std::numeric_limits<std::int16_t>::min()) or
+            (sint > std::numeric_limits<std::int16_t>::max()))
         {
             return 4;
         }
-        if ((x < std::numeric_limits<std::int8_t>::min()) or
-            (x > std::numeric_limits<std::int8_t>::max()))
+        if ((sint < std::numeric_limits<std::int8_t>::min()) or
+            (sint > std::numeric_limits<std::int8_t>::max()))
         {
             return 2;
         }
@@ -205,11 +205,20 @@ constexpr inline std::size_t byte_width(T c)
     }
     // else
     {
-        auto x = static_cast<std::uint64_t>(c);
-        return (x > std::numeric_limits<std::uint32_t>::max())   ? 8
-               : (x > std::numeric_limits<std::uint16_t>::max()) ? 4
-               : (x > std::numeric_limits<std::uint8_t>::max())  ? 2
-                                                                 : 1;
+        auto uint = static_cast<std::uint64_t>(integral);
+        if (uint > std::numeric_limits<std::uint32_t>::max())
+        {
+            return 8;
+        }
+        if (uint > std::numeric_limits<std::uint16_t>::max())
+        {
+            return 4;
+        }
+        if (uint > std::numeric_limits<std::uint8_t>::max())
+        {
+            return 2;
+        }
+        return 1;
     }
 }
 
@@ -245,12 +254,12 @@ struct copy_cv_reference
 {
   private:
     using R = std::remove_reference_t<T>;
-    using U1 = std::conditional_t<std::is_const<R>::value, std::add_const_t<U>, U>;
-    using U2 = std::conditional_t<std::is_volatile<R>::value, std::add_volatile_t<U1>, U1>;
+    using U1 = std::conditional_t<std::is_const_v<R>, std::add_const_t<U>, U>;
+    using U2 = std::conditional_t<std::is_volatile_v<R>, std::add_volatile_t<U1>, U1>;
     using U3 =
-        std::conditional_t<std::is_lvalue_reference<T>::value, std::add_lvalue_reference_t<U2>, U2>;
+        std::conditional_t<std::is_lvalue_reference_v<T>, std::add_lvalue_reference_t<U2>, U2>;
     using U4 =
-        std::conditional_t<std::is_rvalue_reference<T>::value, std::add_rvalue_reference_t<U3>, U3>;
+        std::conditional_t<std::is_rvalue_reference_v<T>, std::add_rvalue_reference_t<U3>, U3>;
 
   public:
     using type = U4;
@@ -271,7 +280,7 @@ struct bitfield_props
     template <typename T = unsigned>
     constexpr static T mask()
     {
-        return ((1 << size_bits()) - 1);
+        return ((1U << size_bits()) - 1U);
     }
     template <typename T>
     constexpr static T extract_field(T memory)
@@ -296,8 +305,8 @@ struct bitfield_props
             struct
             {
                 T field : size_bits();
-            } s{.field = v};
-            return s.field;
+            } const storage{.field = v};
+            return storage.field;
         }
         return v;
     }
@@ -321,7 +330,7 @@ struct regbitfieldset_props : public bitfield_props<OFFSET, ITEM_SIZE + OFFSET -
 
     constexpr static std::size_t offset(std::size_t index)
     {
-        return base::offset() + index * base::size_bits();
+        return base::offset() + (index * base::size_bits());
     }
     template <typename T>
     constexpr static T extract_field(T memory, std::size_t index)
@@ -362,6 +371,7 @@ struct base
         template <typename Tptr>
         static void setter(Tptr& ptr, int_type v)
         {
+            // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
             if constexpr (std::is_void_v<decltype((copy_cv_t<Tptr&, T>)ptr = v)>)
             {
                 (copy_cv_t<Tptr&, T>)ptr = v;
@@ -371,6 +381,7 @@ struct base
                 // the assignment might return a volatile-qualified reference
                 // avoid reading it by keeping it a reference, and casting away the qualifier
                 // all this is to avoid warnings
+                // NOLINTNEXTLINE(readability-identifier-length)
                 [[maybe_unused]] auto& _ = const_cast<T&>((copy_cv_t<Tptr&, T>)ptr = v);
             }
         }
@@ -380,30 +391,30 @@ struct base
         static void set_field(BITFILLED_FIELD_PROPS_PARAM_T& bf, TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
-            const auto v = static_cast<int_type>(value);
+            const auto intval = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
-                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::position_field(v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::position_field(intval));
             }
             else
             {
-                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::insert_field(getter(bf), v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::insert_field(getter(bf), intval));
             }
         }
         template <std::size_t FIRST_BIT, std::size_t LAST_BIT, typename TVal>
         static void set_field(volatile BITFILLED_FIELD_PROPS_PARAM_T& bf, TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
-            const auto v = static_cast<int_type>(value);
+            const auto intval = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
-                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::position_field(v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::position_field(intval));
             }
             else
             {
-                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::insert_field(getter(bf), v));
+                setter(bf, bitfield_props<FIRST_BIT, LAST_BIT>::insert_field(getter(bf), intval));
             }
         }
 
@@ -411,34 +422,34 @@ struct base
         static TVal get_field(const BITFILLED_FIELD_PROPS_PARAM_T& bf)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x =
+            auto typeval =
                 static_cast<TVal>(bitfield_props<FIRST_BIT, LAST_BIT>::extract_field(getter(bf)));
-            return bitfield_props<FIRST_BIT, LAST_BIT>::sign_extend(x);
+            return bitfield_props<FIRST_BIT, LAST_BIT>::sign_extend(typeval);
         }
         template <typename TVal, std::size_t FIRST_BIT, std::size_t LAST_BIT>
         static TVal get_field(const volatile BITFILLED_FIELD_PROPS_PARAM_T& bf)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x =
+            auto typeval =
                 static_cast<TVal>(bitfield_props<FIRST_BIT, LAST_BIT>::extract_field(getter(bf)));
-            return bitfield_props<FIRST_BIT, LAST_BIT>::sign_extend(x);
+            return bitfield_props<FIRST_BIT, LAST_BIT>::sign_extend(typeval);
         }
 
         template <std::size_t ITEM_SIZE, std::size_t ITEM_COUNT, std::size_t OFFSET, typename TVal>
         static void set_item(BITFILLED_FIELDSET_PROPS_PARAM_T& bf, std::size_t index, TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
-            const auto v = static_cast<int_type>(value);
+            const auto intval = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
                 setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::position_field(
-                               v, index));
+                               intval, index));
             }
             else
             {
                 setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::insert_field(
-                               getter(bf), v, index));
+                               getter(bf), intval, index));
             }
         }
         template <std::size_t ITEM_SIZE, std::size_t ITEM_COUNT, std::size_t OFFSET, typename TVal>
@@ -446,17 +457,17 @@ struct base
                              TVal value)
             requires(is_writeable<bitfield_ops::access()>)
         {
-            const auto v = static_cast<int_type>(value);
+            const auto intval = static_cast<int_type>(value);
             if constexpr (!is_readable<bitfield_ops::access()> or
                           is_ephemeralwrite<bitfield_ops::access()>)
             {
                 setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::position_field(
-                               v, index));
+                               intval, index));
             }
             else
             {
                 setter(bf, regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::insert_field(
-                               getter(bf), v, index));
+                               getter(bf), intval, index));
             }
         }
 
@@ -464,19 +475,19 @@ struct base
         static TVal get_item(const BITFILLED_FIELDSET_PROPS_PARAM_T& bf, std::size_t index)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x = static_cast<TVal>(
+            auto typeval = static_cast<TVal>(
                 regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::extract_field(getter(bf),
                                                                                    index));
-            return regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::sign_extend(x);
+            return regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::sign_extend(typeval);
         }
         template <typename TVal, std::size_t ITEM_SIZE, std::size_t ITEM_COUNT, std::size_t OFFSET>
         static TVal get_item(const volatile BITFILLED_FIELDSET_PROPS_PARAM_T& bf, std::size_t index)
             requires(is_readable<bitfield_ops::access()>)
         {
-            auto x = static_cast<TVal>(
+            auto typeval = static_cast<TVal>(
                 regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::extract_field(getter(bf),
                                                                                    index));
-            return regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::sign_extend(x);
+            return regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>::sign_extend(typeval);
         }
     };
 };
@@ -521,8 +532,8 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
-                const auto v = static_cast<base_ops::int_type>(value);
-                bitmemory(bf, FIRST_BIT) = v;
+                const auto intval = static_cast<base_ops::int_type>(value);
+                bitmemory(bf, FIRST_BIT) = intval;
             }
             else
             {
@@ -535,8 +546,8 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
-                const auto v = static_cast<base_ops::int_type>(value);
-                bitmemory(bf, FIRST_BIT) = v;
+                const auto intval = static_cast<base_ops::int_type>(value);
+                bitmemory(bf, FIRST_BIT) = intval;
             }
             else
             {
@@ -549,8 +560,8 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
-                auto x = static_cast<TVal>(bitmemory(bf, FIRST_BIT));
-                return bf.sign_extend(x);
+                auto typeval = static_cast<TVal>(bitmemory(bf, FIRST_BIT));
+                return bf.sign_extend(typeval);
             }
             else
             {
@@ -563,8 +574,8 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
-                auto x = static_cast<TVal>(bitmemory(bf, FIRST_BIT));
-                return bf.sign_extend(x);
+                auto typeval = static_cast<TVal>(bitmemory(bf, FIRST_BIT));
+                return bf.sign_extend(typeval);
             }
             else
             {
@@ -578,8 +589,8 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
-                const auto v = static_cast<base_ops::int_type>(value);
-                bitmemory(bf, OFFSET + index) = v;
+                const auto intval = static_cast<base_ops::int_type>(value);
+                bitmemory(bf, OFFSET + index) = intval;
             }
             else
             {
@@ -593,8 +604,8 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
-                const auto v = static_cast<base_ops::int_type>(value);
-                bitmemory(bf, OFFSET + index) = v;
+                const auto intval = static_cast<base_ops::int_type>(value);
+                bitmemory(bf, OFFSET + index) = intval;
             }
             else
             {
@@ -608,8 +619,8 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
-                auto x = static_cast<TVal>(bitmemory(bf, OFFSET + index));
-                return bf.sign_extend(x);
+                auto typeval = static_cast<TVal>(bitmemory(bf, OFFSET + index));
+                return bf.sign_extend(typeval);
             }
             else
             {
@@ -623,8 +634,8 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
-                auto x = static_cast<TVal>(bitmemory(bf, OFFSET + index));
-                return bf.sign_extend(x);
+                auto typeval = static_cast<TVal>(bitmemory(bf, OFFSET + index));
+                return bf.sign_extend(typeval);
             }
             else
             {
@@ -666,6 +677,10 @@ struct regbitfield_reference : public T::props_type
 
   public:
     static constexpr enum access access() { return T::access(); }
+
+    ~regbitfield_reference() = default;
+    regbitfield_reference(regbitfield_reference&&) = delete;
+    regbitfield_reference& operator=(regbitfield_reference&&) = delete;
 
     BITFILLED_ASSIGN_RETURN_DECL(auto&)
     operator=(value_type other)
@@ -736,6 +751,10 @@ struct regbitfield
         *this = other;
     }
 
+    ~regbitfield() = default;
+    regbitfield(regbitfield&&) = delete;
+    regbitfield& operator=(regbitfield&&) = delete;
+
     BITFILLED_ASSIGN_RETURN_DECL(auto)
     operator=(T other)
         requires(is_writeable<ACCESS>)
@@ -782,8 +801,8 @@ struct regbitfield
     operator=(const regbitfield & other)
         requires(is_readwrite<ACCESS>)
     {
-        auto v = static_cast<T>(other);
-        TOps::set_field((props_type&)*this, v);
+        auto value = static_cast<T>(other);
+        TOps::set_field((props_type&)*this, value);
         return BITFILLED_ASSIGN_RETURN_EXPR(
             (regbitfield_reference<regbitfield>{(props_type&)*this}));
     }
@@ -792,8 +811,8 @@ struct regbitfield
     operator=(const regbitfield & other) volatile
         requires(is_readwrite<ACCESS>)
     {
-        auto v = static_cast<T>(other);
-        TOps::set_field((volatile props_type&)*this, v);
+        auto value = static_cast<T>(other);
+        TOps::set_field((volatile props_type&)*this, value);
         return BITFILLED_ASSIGN_RETURN_EXPR(
             (regbitfield_reference<regbitfield, true>{(volatile props_type&)*this}));
     }
@@ -815,7 +834,13 @@ struct regbitfieldset
 
     static constexpr enum access access() { return ACCESS; }
 
+    static constexpr std::size_t size() { return ITEM_COUNT; }
+
     constexpr regbitfieldset() = default;
+
+    ~regbitfieldset() = default;
+    regbitfieldset(regbitfieldset&&) = delete;
+    regbitfieldset& operator=(regbitfieldset&&) = delete;
 
     regbitfieldset(const regbitfieldset&)
         requires(!is_readwrite<ACCESS>)
@@ -833,7 +858,8 @@ struct regbitfieldset
     operator=(const regbitfieldset & other)
         requires(is_readwrite<ACCESS>)
     {
-        using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + ITEM_COUNT * ITEM_SIZE - 1>;
+        using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + (ITEM_COUNT * ITEM_SIZE) - 1>;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         reinterpret_cast<bf_type&>(*this) = reinterpret_cast<const bf_type&>(other);
         return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<bf_type&>(*this));
     }
@@ -842,7 +868,8 @@ struct regbitfieldset
     operator=(const regbitfieldset& other) volatile
         requires(is_readwrite<ACCESS>)
     {
-        using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + ITEM_COUNT * ITEM_SIZE - 1>;
+        using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + (ITEM_COUNT * ITEM_SIZE) - 1>;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         reinterpret_cast<volatile bf_type&>(*this) = reinterpret_cast<const bf_type&>(other);
         return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<volatile bf_type&>(*this));
     }
@@ -914,26 +941,26 @@ struct sized_integer
 template <std::size_t SIZE>
 struct sized_integer<SIZE, std::enable_if_t<SIZE == 1>>
 {
-    typedef std::uint8_t unsigned_type;
-    typedef std::int8_t signed_type;
+    using unsigned_type = std::uint8_t;
+    using signed_type = std::int8_t;
 };
 template <std::size_t SIZE>
 struct sized_integer<SIZE, std::enable_if_t<SIZE == 2>>
 {
-    typedef std::uint16_t unsigned_type;
-    typedef std::int16_t signed_type;
+    using unsigned_type = std::uint16_t;
+    using signed_type = std::int16_t;
 };
 template <std::size_t SIZE>
 struct sized_integer<SIZE, std::enable_if_t<SIZE == 4>>
 {
-    typedef std::uint32_t unsigned_type;
-    typedef std::int32_t signed_type;
+    using unsigned_type = std::uint32_t;
+    using signed_type = std::int32_t;
 };
 template <std::size_t SIZE>
 struct sized_integer<SIZE, std::enable_if_t<SIZE == 8>>
 {
-    typedef std::uint64_t unsigned_type;
-    typedef std::int64_t signed_type;
+    using unsigned_type = std::uint64_t;
+    using signed_type = std::int64_t;
 };
 
 template <std::size_t SIZE>
@@ -950,7 +977,11 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
     using base_type::operator=;
 
     constexpr integer_storage() : base_type() {}
-
+    // NOLINTNEXTLINE
+    constexpr explicit integer_storage(const sized_unsigned_t<1> (&arr)[SIZE])
+    {
+        std::copy_n(arr, SIZE, base_type::data());
+    }
     template <std::integral T>
     constexpr explicit integer_storage(T value, std::endian endianness = std::endian::native)
         : base_type()
@@ -958,7 +989,7 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
         // if the value is signed, fill the target with sign extend bytes
         if (std::is_signed_v<T> and (value < static_cast<T>(0)))
         {
-            std::fill(this->begin(), this->end(), 0xffu);
+            std::fill(this->begin(), this->end(), 0xffU);
         }
 
         // byteswap if the endian is not native
@@ -1002,15 +1033,15 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
     }
 
     template <std::integral T>
-    constexpr T to_integral(std::endian endianness = std::endian::native) const
+    [[nodiscard]] constexpr T to_integral(std::endian endianness = std::endian::native) const
     {
         integer_storage<sizeof(T)> value_repr;
 
         // if the value is signed, fill the target with sign extend bytes
         if (std::is_signed_v<T> and
-            ((endianness == std::endian::little ? this->back() : this->front()) & 0x80u))
+            ((endianness == std::endian::little ? this->back() : this->front()) & 0x80U))
         {
-            std::fill(value_repr.begin(), value_repr.end(), 0xffu);
+            std::fill(value_repr.begin(), value_repr.end(), 0xffU);
         }
 
         // transfer the bytes to the correct position
@@ -1064,8 +1095,8 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
 template <std::endian ENDIAN, std::size_t SIZE, Integral T = sized_unsigned_t<std::bit_ceil(SIZE)>>
 struct packed_integer
 {
-  private:
-    integer_storage<SIZE> storage_;
+  protected: // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
+    integer_storage<SIZE> storage;
 
   public:
     using superclass = packed_integer;
@@ -1074,17 +1105,26 @@ struct packed_integer
 
     static constexpr auto endianness = ENDIAN;
 
-    constexpr packed_integer() : storage_() {}
-    constexpr packed_integer(value_type value) : storage_(value, endianness) {}
+    constexpr packed_integer() : storage() {}
+    constexpr packed_integer(value_type value) : storage(value, endianness) {}
+    // NOLINTNEXTLINE
+    constexpr explicit packed_integer(const sized_unsigned_t<1> (&arr)[SIZE]) : storage(arr) {}
+
     constexpr packed_integer& operator=(value_type value)
     {
-        storage_ = integer_storage<SIZE>(value, endianness);
+        storage = integer_storage<SIZE>(value, endianness);
         return *this;
     }
     constexpr operator value_type() const
     {
-        return storage_.template to_integral<value_type>(endianness);
+        return storage.template to_integral<value_type>(endianness);
     }
+    [[nodiscard]] constexpr std::array<sized_unsigned_t<1>, SIZE> to_array() { return storage; }
+    [[nodiscard]] constexpr const std::array<sized_unsigned_t<1>, SIZE>& as_array() const
+    {
+        return storage;
+    }
+
     BITFILLED_OPS_FORWARDING
 };
 
@@ -1161,13 +1201,13 @@ struct mmr_r
     constexpr operator auto &() const volatile { return raw; }
 
   protected:
-    T raw{};
+    T raw{}; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
 };
 template <Integral T>
 struct mmr_w
 {
   protected:
-    T raw{};
+    T raw{}; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
 };
 template <Integral T>
 struct mmr_rw
@@ -1178,7 +1218,7 @@ struct mmr_rw
     constexpr operator auto &() const volatile { return raw; }
 
   protected:
-    T raw{};
+    T raw{}; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
 };
 } // namespace detail
 
@@ -1204,6 +1244,10 @@ struct mmreg : public detail::accesscondition<ACCESS, detail::mmr_r<T>, detail::
     {
         raw = other;
     }
+
+    ~mmreg() = default;
+    mmreg(mmreg&&) = delete;
+    mmreg& operator=(mmreg&&) = delete;
 
     constexpr static auto size() { return sizeof(raw); }
 
@@ -1243,6 +1287,12 @@ struct mmreg : public detail::accesscondition<ACCESS, detail::mmr_r<T>, detail::
     constexpr mmreg& operator=(const mmreg&)
         requires(!is_readwrite<ACCESS>)
     = delete;
+    constexpr mmreg(const mmreg&)
+        requires(is_readwrite<ACCESS>)
+    = default;
+    constexpr mmreg& operator=(const mmreg&)
+        requires(is_readwrite<ACCESS>)
+    = default;
 
     BITFILLED_OPS_FORWARDING
 };
