@@ -88,6 +88,11 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
         }
 #endif
         // transfer the bytes to the correct position
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
         constexpr long size_diff = (long)sizeof(T) - (long)SIZE;
         constexpr auto min_size = std::min(sizeof(T), SIZE);
         if (endianness == std::endian::little)
@@ -111,6 +116,9 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
                           this->data() - size_diff);
             }
         }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
     }
 
     template <std::integral T>
@@ -126,6 +134,11 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
         }
 
         // transfer the bytes to the correct position
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
         constexpr long size_diff = (long)SIZE - (long)sizeof(T);
         constexpr auto min_size = std::min(sizeof(T), SIZE);
         if (endianness == std::endian::little)
@@ -148,6 +161,9 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
                 std::copy(this->data(), this->data() + SIZE, value_repr.data() - size_diff);
             }
         }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
         // if not native endianness, reverse byte order
 #if !__cpp_lib_byteswap
