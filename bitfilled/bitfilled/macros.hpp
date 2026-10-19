@@ -96,6 +96,18 @@
 
 #endif
 
+/// @brief Inherit the superclass constructors and assignment operators.
+/// @details Intended for subclasses of a type that defines a `superclass` alias, such as
+/// `host_integer`. Without this macro, a derived type can remain an aggregate. GCC rejects
+/// designated initialization of `BF_BITS` members in that case because those members are
+/// `[[no_unique_address]]` bitfield descriptors with a deleted move constructor.
+///
+/// Inheriting constructors makes the derived type non-aggregate, so designated initializers are
+/// unavailable. The inherited base constructor can initialize the underlying value, after which
+/// bitfields can be assigned normally. The inherited assignment operator also allows assigning a
+/// volatile source object to a non-volatile destination; it does not make a volatile destination
+/// assignable from a non-volatile source.
+/// @param CLASS the current class name
 #define BF_COPY_SUPERCLASS(CLASS)                                                                  \
     using superclass::superclass;                                                                  \
     using superclass::operator=;

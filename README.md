@@ -96,7 +96,7 @@ struct myint : bitfilled::host_integer<unsigned>
 These fields can be accesses as regular members, however their value is stored inside the containing class's (superclass's) memory. Bit field set elements are accessible via `operator[]`.
 
 I encourage everyone to try it online:
-https://godbolt.org/z/bba7a8sTT
+https://godbolt.org/z/b4cM5nqe3
 
 ### Register bit fields
 
@@ -134,6 +134,10 @@ The code is self-explanatory, and provides an accurate interface to the hardware
 
 A fully functional MM I/O example is available [here][bitfilled-stm32f4],
 where the **significant** code size savings are also illustrated.
+
+The `bluepill-can-bl` project also uses this library to cut down on code size,
+see this report on the impact of [using bit-band register bit access]
+(https://github.com/benedekkupper/bluepill-can-bl/blob/main/docs/bitband-analysis.md).
 
 The project also comes with a [python code generator](tools/svd2mmregmap.py) (draft version),
 that let's you create register map definition out of CMSIS SVD files.
