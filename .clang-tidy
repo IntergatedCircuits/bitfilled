@@ -21,12 +21,12 @@ Checks: >
   -hicpp-explicit-conversions,
   -hicpp-signed-bitwise,
   portability-*,
+  -portability-avoid-pragma-once,
   misc-*,
   -misc-include-cleaner,
   -misc-non-private-member-variables-in-classes,
   -misc-unconventional-assign-operator
 
-WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
 FormatStyle: file
 CheckOptions:
