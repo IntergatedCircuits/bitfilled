@@ -8,6 +8,10 @@ namespace bitfilled
 struct empty_type
 {};
 
+/// @brief  Proxy to a single bit field (set item), returned by bit field set indexing
+///         (and by bit field assignment when BITFILLED_ASSIGN_RETURNS_REF is enabled).
+///         Unlike the bit field descriptors, it refers to its storage explicitly, so it can be
+///         passed around like any other proxy reference (e.g. std::vector<bool>::reference).
 template <typename T, bool IsVolatile = false>
 struct regbitfield_reference : public T::props_type
 {
@@ -50,7 +54,7 @@ struct regbitfield_reference : public T::props_type
         }
         return BITFILLED_ASSIGN_RETURN_EXPR(*this);
     }
-    operator auto() const
+    operator value_type() const
         requires(is_readable<T::access()>)
     {
         if constexpr (T::dynamic_index)
@@ -82,36 +86,66 @@ struct regbitfield_reference : public T::props_type
     }
 };
 
-/// \brief  The regbitfield class is an access-constrained bitfield type.
-template <typename T, typename TOps, enum access ACCESS, std::size_t FIRST_BIT,
+/// @brief  The regbitfield class is an access-constrained bitfield type.
+/// @details A bit field is a stateless descriptor: it is an empty member of its containing
+///          type (via `[[no_unique_address]]`), and it accesses the containing type's storage
+///          through its own address. Therefore it is only meaningful as a member subobject:
+///          - its default and copy constructors are trivial, so constructing or copying the
+///            containing type never executes bit field code (the storage is copied by the base),
+///          - the copy constructor is only accessible to the owner class (see @ref BF_OWNER),
+///            so `auto v = obj.field;` or passing a field by value fails to compile instead of
+///            creating a detached descriptor (convert to the value type instead),
+///          - assignment between bit fields copies the field value, not the descriptor.
+///          The converting constructor only exists to support aggregate initialization of the
+///          containing type (designated initializers), and must not be used otherwise.
+template <BitfieldValue T, typename TOps, enum access ACCESS, std::size_t FIRST_BIT,
           std::size_t LAST_BIT = FIRST_BIT>
+    requires(BitRangeFitsStorage<TOps, FIRST_BIT, LAST_BIT> and
+             BitRangeFitsValue<T, FIRST_BIT, LAST_BIT>)
 struct regbitfield
 {
+  private:
+    static constexpr enum access access_rights = effective_access<ACCESS, TOps>;
+
+    // only the owner class may copy the descriptor, as part of copying itself
+    friend typename detail::owner_of<TOps>::type;
+    explicit constexpr regbitfield(const regbitfield&) = default;
+
+  public:
     using value_type = T;
     using ops_type = TOps;
     using props_type = bitfield_props<FIRST_BIT, LAST_BIT>;
     static constexpr bool dynamic_index = false;
 
-    static constexpr enum access access() { return ACCESS; }
-    constexpr static T mask() { return props_type::template mask<T>(); }
-    constexpr static T memory_mask() { return props_type::template memory_mask<T>(); }
+    /// @return the effective access rights (the field's declared rights, limited by the storage's)
+    static constexpr enum access access() { return access_rights; }
+    constexpr static T mask()
+        requires(std::integral<T> and !std::is_same_v<T, bool>)
+    {
+        return props_type::template mask<T>();
+    }
     constexpr static auto offset() { return props_type::offset(); }
     constexpr static auto size_bits() { return props_type::size_bits(); }
 
     constexpr regbitfield() = default;
-    constexpr regbitfield(T other)
-        requires(is_writeable<ACCESS>)
+    /// @brief  Only for aggregate initialization of the containing type.
+    /// @note   Accepts plain values only (no bit fields, proxies or other classes),
+    ///         so it is never used to convert a bit field into a detached copy of itself.
+    template <BitfieldValue U>
+        requires(is_writeable<access_rights> and std::is_convertible_v<U, T>)
+    constexpr regbitfield(U other)
     {
-        *this = other;
+        *this = static_cast<T>(other);
     }
 
     ~regbitfield() = default;
+    regbitfield(regbitfield&) = delete;
     regbitfield(regbitfield&&) = delete;
     regbitfield& operator=(regbitfield&&) = delete;
 
     BITFILLED_ASSIGN_RETURN_DECL(auto)
     operator=(T other)
-        requires(is_writeable<ACCESS>)
+        requires(is_writeable<access_rights>)
     {
         TOps::set_field((props_type&)*this, other);
         return BITFILLED_ASSIGN_RETURN_EXPR(
@@ -120,7 +154,7 @@ struct regbitfield
     // clang-format off
     BITFILLED_ASSIGN_RETURN_DECL(auto)
     operator=(T other) volatile
-        requires(is_writeable<ACCESS>)
+        requires(is_writeable<access_rights>)
     {
         TOps::set_field((volatile props_type&)*this, other);
         return BITFILLED_ASSIGN_RETURN_EXPR(
@@ -128,32 +162,24 @@ struct regbitfield
     }
     // clang-format on
     operator T() const
-        requires(is_readable<ACCESS>)
+        requires(is_readable<access_rights>)
     {
         return TOps::template get_field<T>((const props_type&)*this);
     }
     // clang-format off
     operator T() const volatile
-        requires(is_readable<ACCESS>)
+        requires(is_readable<access_rights>)
     {
         return TOps::template get_field<T>((const volatile props_type&)*this);
     }
     // clang-format on
 
-    regbitfield(const regbitfield&)
-        requires(!is_readwrite<ACCESS>)
-    = delete;
     regbitfield& operator=(const regbitfield&)
-        requires(!is_readwrite<ACCESS>)
+        requires(!is_readwrite<access_rights>)
     = delete;
-    regbitfield(const regbitfield& other)
-        requires(is_readwrite<ACCESS>)
-    {
-        *this = other;
-    }
     BITFILLED_ASSIGN_RETURN_DECL(auto)
     operator=(const regbitfield & other)
-        requires(is_readwrite<ACCESS>)
+        requires(is_readwrite<access_rights>)
     {
         auto value = static_cast<T>(other);
         TOps::set_field((props_type&)*this, value);
@@ -163,7 +189,7 @@ struct regbitfield
     // clang-format off
     BITFILLED_ASSIGN_RETURN_DECL(auto)
     operator=(const regbitfield & other) volatile
-        requires(is_readwrite<ACCESS>)
+        requires(is_readwrite<access_rights>)
     {
         auto value = static_cast<T>(other);
         TOps::set_field((volatile props_type&)*this, value);
@@ -177,84 +203,92 @@ struct regbitfield
 template <typename T, typename TOps, std::size_t FIRST_BIT, std::size_t LAST_BIT = FIRST_BIT>
 using bitfield = regbitfield<T, TOps, access::readwrite, FIRST_BIT, LAST_BIT>;
 
-template <typename T, typename TOps, enum access ACCESS, std::size_t ITEM_SIZE,
+/// @brief  The regbitfieldset class is an access-constrained array of adjacent bit fields.
+/// @details Like @ref regbitfield, it is a stateless descriptor with the same construction and
+///          copy restrictions. Its items are accessed by operator[], which returns the item value
+///          for read-only sets, and a @ref regbitfield_reference proxy for writeable sets.
+template <BitfieldValue T, typename TOps, enum access ACCESS, std::size_t ITEM_SIZE,
           std::size_t ITEM_COUNT, std::size_t OFFSET = 0>
+    requires((ITEM_SIZE > 0) and (ITEM_COUNT > 0) and
+             BitRangeFitsStorage<TOps, OFFSET, OFFSET + (ITEM_SIZE * ITEM_COUNT) - 1> and
+             BitRangeFitsValue<T, 0, ITEM_SIZE - 1>)
 struct regbitfieldset
 {
+  private:
+    static constexpr enum access access_rights = effective_access<ACCESS, TOps>;
+
+    // only the owner class may copy the descriptor, as part of copying itself
+    friend typename detail::owner_of<TOps>::type;
+    explicit constexpr regbitfieldset(const regbitfieldset&) = default;
+
+  public:
     using value_type = T;
     using ops_type = TOps;
     using props_type = regbitfieldset_props<ITEM_SIZE, ITEM_COUNT, OFFSET>;
     static constexpr bool dynamic_index = true;
 
-    static constexpr enum access access() { return ACCESS; }
+    /// @return the effective access rights (the field's declared rights, limited by the storage's)
+    static constexpr enum access access() { return access_rights; }
 
     static constexpr std::size_t size() { return ITEM_COUNT; }
 
     constexpr regbitfieldset() = default;
 
     ~regbitfieldset() = default;
+    regbitfieldset(regbitfieldset&) = delete;
     regbitfieldset(regbitfieldset&&) = delete;
     regbitfieldset& operator=(regbitfieldset&&) = delete;
 
-    regbitfieldset(const regbitfieldset&)
-        requires(!is_readwrite<ACCESS>)
-    = delete;
     regbitfieldset& operator=(const regbitfieldset&)
-        requires(!is_readwrite<ACCESS>)
+        requires(!is_readwrite<access_rights>)
     = delete;
 
-    regbitfieldset(const regbitfieldset& other)
-        requires(is_readwrite<ACCESS>)
-    {
-        *this = other;
-    }
+  private:
+    // the whole set as a single field of the storage integer type,
+    // used to copy all items at once (the item value type might be narrower, e.g. bool)
+    using whole_type = regbitfield<typename TOps::int_type, TOps, ACCESS, OFFSET,
+                                   OFFSET + (ITEM_COUNT * ITEM_SIZE) - 1>;
+
+  public:
     BITFILLED_ASSIGN_RETURN_DECL(auto&)
     operator=(const regbitfieldset & other)
-        requires(is_readwrite<ACCESS>)
+        requires(is_readwrite<access_rights>)
     {
-        using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + (ITEM_COUNT * ITEM_SIZE) - 1>;
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        reinterpret_cast<bf_type&>(*this) = reinterpret_cast<const bf_type&>(other);
-        return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<bf_type&>(*this));
+        reinterpret_cast<whole_type&>(*this) = reinterpret_cast<const whole_type&>(other);
+        return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<whole_type&>(*this));
     }
     // clang-format off
     BITFILLED_ASSIGN_RETURN_DECL(auto&)
     operator=(const regbitfieldset& other) volatile
-        requires(is_readwrite<ACCESS>)
+        requires(is_readwrite<access_rights>)
     {
-        using bf_type = regbitfield<T, TOps, ACCESS, OFFSET, OFFSET + (ITEM_COUNT * ITEM_SIZE) - 1>;
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        reinterpret_cast<volatile bf_type&>(*this) = reinterpret_cast<const bf_type&>(other);
-        return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<volatile bf_type&>(*this));
+        reinterpret_cast<volatile whole_type&>(*this) = reinterpret_cast<const whole_type&>(other);
+        return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<volatile whole_type&>(*this));
     }
     // clang-format on
     auto
     operator[](std::size_t pos) const
+        requires(is_readable<access_rights>)
     {
         return TOps::template get_item<T>((const props_type&)*this, pos);
     }
+    // clang-format off
     auto operator[](std::size_t pos) const volatile
+        requires(is_readable<access_rights>)
     {
         return TOps::template get_item<T>((const volatile props_type&)*this, pos);
     }
+    // clang-format on
     auto operator[](std::size_t pos)
-        requires(is_readonly<ACCESS>)
-    {
-        return TOps::template get_item<T>((props_type&)*this, pos);
-    }
-    auto operator[](std::size_t pos)
-        requires(is_readwrite<ACCESS>)
+        requires(is_writeable<access_rights>)
     {
         return regbitfield_reference<regbitfieldset>{(props_type&)*this, pos};
     }
     // clang-format off
     auto operator[](std::size_t pos) volatile
-        requires(is_readonly<ACCESS>)
-    {
-        return TOps::template get_item<T>((volatile props_type&)*this, pos);
-    }
-    auto operator[](std::size_t pos) volatile
-        requires(is_readwrite<ACCESS>)
+        requires(is_writeable<access_rights>)
     {
         return regbitfield_reference<regbitfieldset, true>{(volatile props_type&)*this, pos};
     }

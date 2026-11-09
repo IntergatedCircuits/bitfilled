@@ -36,7 +36,7 @@ constexpr std::size_t byte_width(T integral)
         }
         return 1;
     }
-    // else
+    else
     {
         auto uint = static_cast<std::uint64_t>(integral);
         if (uint > std::numeric_limits<std::uint32_t>::max())

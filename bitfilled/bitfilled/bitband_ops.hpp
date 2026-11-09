@@ -17,10 +17,14 @@ struct bitband
     template <typename T, enum access ACCESS>
     struct bitfield_ops : private base::bitfield_ops<T, ACCESS>
     {
-      private:
         using base_ops = base::bitfield_ops<T, ACCESS>;
+
+      public:
         using base_ops::access;
-        using base_ops::int_type;
+        using base_ops::storage_bits;
+        using typename base_ops::int_type;
+
+      private:
         static_assert((BASE_ADDRESS & 0x9fffffff) == 0);
         static constexpr std::uintptr_t BITBAND_BASE_ADDRESS = BASE_ADDRESS | 0x02000000;
 
@@ -41,6 +45,7 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
+                base_ops::template check_field<TVal, FIRST_BIT, LAST_BIT>();
                 const auto intval = static_cast<base_ops::int_type>(value);
                 bitmemory(bf, FIRST_BIT) = intval;
             }
@@ -55,6 +60,7 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
+                base_ops::template check_field<TVal, FIRST_BIT, LAST_BIT>();
                 const auto intval = static_cast<base_ops::int_type>(value);
                 bitmemory(bf, FIRST_BIT) = intval;
             }
@@ -69,6 +75,7 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
+                base_ops::template check_field<TVal, FIRST_BIT, LAST_BIT>();
                 auto typeval = static_cast<TVal>(bitmemory(bf, FIRST_BIT));
                 return bf.sign_extend(typeval);
             }
@@ -83,6 +90,7 @@ struct bitband
         {
             if constexpr (FIRST_BIT == LAST_BIT)
             {
+                base_ops::template check_field<TVal, FIRST_BIT, LAST_BIT>();
                 auto typeval = static_cast<TVal>(bitmemory(bf, FIRST_BIT));
                 return bf.sign_extend(typeval);
             }
@@ -98,8 +106,9 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
+                base_ops::template check_items<TVal, ITEM_SIZE, ITEM_COUNT, OFFSET>();
                 const auto intval = static_cast<base_ops::int_type>(value);
-                bitmemory(bf, OFFSET + index) = intval;
+                bitmemory(bf, bf.offset(index)) = intval;
             }
             else
             {
@@ -113,8 +122,9 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
+                base_ops::template check_items<TVal, ITEM_SIZE, ITEM_COUNT, OFFSET>();
                 const auto intval = static_cast<base_ops::int_type>(value);
-                bitmemory(bf, OFFSET + index) = intval;
+                bitmemory(bf, bf.offset(index)) = intval;
             }
             else
             {
@@ -128,7 +138,8 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
-                auto typeval = static_cast<TVal>(bitmemory(bf, OFFSET + index));
+                base_ops::template check_items<TVal, ITEM_SIZE, ITEM_COUNT, OFFSET>();
+                auto typeval = static_cast<TVal>(bitmemory(bf, bf.offset(index)));
                 return bf.sign_extend(typeval);
             }
             else
@@ -143,7 +154,8 @@ struct bitband
         {
             if constexpr (ITEM_SIZE == 1)
             {
-                auto typeval = static_cast<TVal>(bitmemory(bf, OFFSET + index));
+                base_ops::template check_items<TVal, ITEM_SIZE, ITEM_COUNT, OFFSET>();
+                auto typeval = static_cast<TVal>(bitmemory(bf, bf.offset(index)));
                 return bf.sign_extend(typeval);
             }
             else

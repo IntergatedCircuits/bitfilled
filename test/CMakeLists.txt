@@ -23,6 +23,7 @@ target_link_libraries(${PROJECT_NAME}-test
 add_test(NAME ${PROJECT_NAME}-test COMMAND ${PROJECT_NAME}-test)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(${PROJECT_NAME}-build-test PUBLIC /W4 /WX /permissive-)
     return()
 endif()
 

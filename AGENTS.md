@@ -23,6 +23,21 @@ Important constraints when changing or defining containing types:
   type non-aggregate, so designated initializers are unavailable.
 - `BF_COPY_SUPERCLASS` also supports assignment from a volatile source to a non-volatile object; it
   does not make a volatile destination assignable from a non-volatile source.
+- Field descriptors must never be copied or moved out of their owner (a detached copy accesses
+  memory beyond itself). Their copy constructor is trivial but private, and only accessible to the
+  owner declared by `BF_OWNER(CLASS)` / `BF_COPY_SUPERCLASS(CLASS)` (via `bitfilled::owned_ops`),
+  which must precede the fields. Class templates can't use these macros (dependent superclass),
+  declare `using bf_ops = bitfilled::owned_ops<typename base_type::bf_ops, CLASS>;` instead.
+  Generic code (e.g. boost.ut `that %`) needs the field value, not the field: convert it first
+  (see `bitfilled_test::value_of` in `test/field_traits.hpp`).
+- Constructing and copy constructing an owner must not execute bit field code. Keep descriptor
+  default/copy constructors trivial, and check owners with `bitfilled_test::passive_owner` and
+  descriptors with `bitfilled_test::stateless_field` (the latter not on MSVC, where fields are
+  `__declspec(property)` accessors). Copy *assignment* of an owner does assign field by field, as
+  `a.field = b.field` must copy the value.
+- Field definitions are validated (`BitfieldValue`, `BitRangeFitsStorage`, `BitRangeFitsValue`)
+  as class template constraints, and again with `static_assert` in the base operations, which is
+  the only check on MSVC.
 - Respect register and field access constraints, including volatile access and read-only or
   write-only semantics. Do not bypass them with raw casts or custom operations without a clear
   reason and tests.
@@ -30,7 +45,7 @@ Important constraints when changing or defining containing types:
 Build with CMake and run the focused test suite with CTest, for example:
 
 ```sh
-cmake --preset clang20
-cmake --build build/clang20
-ctest --test-dir build/clang20 --output-on-failure
+cmake -S . -B build/gcc -DCMAKE_CXX_COMPILER=g++
+cmake --build build/gcc
+ctest --test-dir build/gcc --output-on-failure
 ```

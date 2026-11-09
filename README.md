@@ -87,6 +87,7 @@ as having `[[no_unique_address]]` and a long type name isn't all that informativ
 #include <bitfilled.hpp>
 struct myint : bitfilled::host_integer<unsigned>
 {
+    BF_OWNER(myint) // must precede the bit fields
     BF_BITS(bool, 0) boolean; // 1 bit at offset 0
     BF_BITS(std::memory_order, 1, 3) enumerated; // 3 bits at offset 1
     BF_BITSET(bool, 1, 16, 4) bitset BF_BITSET_POSTFIX; // 16 * 1 bits at offset 4
@@ -94,6 +95,27 @@ struct myint : bitfilled::host_integer<unsigned>
 ```
 
 These fields can be accesses as regular members, however their value is stored inside the containing class's (superclass's) memory. Bit field set elements are accessible via `operator[]`.
+
+The `BF_OWNER(myint)` declaration keeps `myint` an aggregate, and makes it copyable.
+(`BF_COPY_SUPERCLASS(myint)` does the same, and additionally inherits the superclass constructors and assignment operators.)
+
+### Rules of use
+
+The library rejects incorrect use at compile time wherever possible:
+
+- Field value types must be integral or enumeration types (as for standard bit fields).
+  A field must fit both in its storage (`LAST_BIT` is below the bit width of the containing type),
+  and in its value type (e.g. a `bool` field is exactly 1 bit wide).
+- Fields have no storage of their own, they can't be copied or moved out of their owner:
+  `auto v = obj.field;` or passing a field by value is a compile error,
+  read the value instead: `int v = obj.field;` or `static_cast<int>(obj.field)`.
+  Assigning one field to another (`a.field = b.field;`) copies the field value.
+- Constructing and copying the owner type never executes any bit field code: the fields are trivially
+  constructed, and the owner's copy constructor only copies the superclass storage.
+  Without `BF_OWNER` / `BF_COPY_SUPERCLASS`, the owner type can't be copy constructed.
+- A field's access is limited by its register's access, e.g. a `rw` field in a read-only register is read-only.
+- Bit field set indexes are checked with `BITFILLED_ASSERT` (defaults to `assert`),
+  define it before including the library to customize or disable the check.
 
 I encourage everyone to try it online:
 https://godbolt.org/z/b4cM5nqe3
@@ -115,17 +137,17 @@ struct systick {
   } CSR;
   struct rvr : BF_MMREG(std::uint32_t, rw) {
     BF_COPY_SUPERCLASS(rvr)
-    BF_MMREGBITS(bool, rw, 0, 23) RELOAD; // optional, same as accessing the register itself
+    BF_MMREGBITS(std::uint32_t, rw, 0, 23) RELOAD; // optional, same as accessing the register itself
   } RVR;
   struct cvr : BF_MMREG(std::uint32_t, rw) {
     BF_COPY_SUPERCLASS(cvr)
-    BF_MMREGBITS(bool, rw, 0, 23) CURRENT; // any write clears the field and COUNTFLAG to 0
+    BF_MMREGBITS(std::uint32_t, rw, 0, 23) CURRENT; // any write clears the field and COUNTFLAG to 0
   } CVR;
   struct calib : BF_MMREG(std::uint32_t, r) {
     BF_COPY_SUPERCLASS(calib)
     BF_MMREGBITS(bool, r, 31) NOREF;
     BF_MMREGBITS(bool, r, 30) SKEW;
-    BF_MMREGBITS(bool, r, 0, 23) TENMS;
+    BF_MMREGBITS(std::uint32_t, r, 0, 23) TENMS;
   } CALIB;
 } & SYSTICK = *reinterpret_cast<volatile systick*>(SysTick_BASE);
 ```

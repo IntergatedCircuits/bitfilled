@@ -75,6 +75,14 @@ const inline std::endian endianness = []()
 #endif
 
 // an implementation either wraps overflows, or clamps them
+// (the overflow is intentional, so the related warnings are suppressed)
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4463)
+#elif defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wbitfield-constant-conversion"
+#endif
 constexpr inline bool overflow_wraps = []() constexpr
 {
     struct s
@@ -83,5 +91,10 @@ constexpr inline bool overflow_wraps = []() constexpr
     } const val{2}; // NOLINT(clang-diagnostic-bitfield-constant-conversion)
     return val.a == -2;
 }();
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#elif defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 } // namespace bitfield_traits

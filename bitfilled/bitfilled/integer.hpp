@@ -56,6 +56,7 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
 {
     using base_type = std::array<sized_unsigned_t<1>, SIZE>;
     using base_type::operator=;
+    static constexpr sized_unsigned_t<1> sign_extend_byte = 0xff;
 
     constexpr integer_storage() : base_type() {}
     // NOLINTNEXTLINE
@@ -68,9 +69,12 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
         : base_type()
     {
         // if the value is signed, fill the target with sign extend bytes
-        if (std::is_signed_v<T> and (value < static_cast<T>(0)))
+        if constexpr (std::is_signed_v<T>)
         {
-            std::fill(this->begin(), this->end(), 0xffU);
+            if (value < static_cast<T>(0))
+            {
+                std::fill(this->begin(), this->end(), sign_extend_byte);
+            }
         }
 
         // byteswap if the endian is not native
@@ -127,10 +131,12 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
         integer_storage<sizeof(T)> value_repr;
 
         // if the value is signed, fill the target with sign extend bytes
-        if (std::is_signed_v<T> and
-            ((endianness == std::endian::little ? this->back() : this->front()) & 0x80U))
+        if constexpr (std::is_signed_v<T>)
         {
-            std::fill(value_repr.begin(), value_repr.end(), 0xffU);
+            if ((endianness == std::endian::little ? this->back() : this->front()) & 0x80U)
+            {
+                std::fill(value_repr.begin(), value_repr.end(), sign_extend_byte);
+            }
         }
 
         // transfer the bytes to the correct position

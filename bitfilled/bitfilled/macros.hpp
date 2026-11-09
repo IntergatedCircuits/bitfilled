@@ -96,7 +96,22 @@
 
 #endif
 
-/// @brief Inherit the superclass constructors and assignment operators.
+/// @brief Declare the current class as the owner of its bit fields.
+/// @details Must precede the bit field declarations, in a class derived from a type that defines
+/// a `superclass` alias (such as `host_integer`, `packed_integer` or `mmreg`). The bit fields
+/// only allow their owner to copy them, so that the owner remains (trivially) copy constructible,
+/// while copying a bit field descriptor out of its owner (e.g. `auto v = obj.field;`) fails to
+/// compile. Without an owner, the class containing bit fields is not copy constructible.
+/// The class remains an aggregate.
+/// @param CLASS the current class name
+#if _MSC_VER
+#define BF_OWNER(CLASS)
+#else
+#define BF_OWNER(CLASS) using bf_ops = ::bitfilled::owned_ops<typename superclass::bf_ops, CLASS>;
+#endif
+
+/// @brief Declare the current class as the owner of its bit fields (see @ref BF_OWNER),
+/// and inherit the superclass constructors and assignment operators.
 /// @details Intended for subclasses of a type that defines a `superclass` alias, such as
 /// `host_integer`. Without this macro, a derived type can remain an aggregate. GCC rejects
 /// designated initialization of `BF_BITS` members in that case because those members are
@@ -104,11 +119,13 @@
 ///
 /// Inheriting constructors makes the derived type non-aggregate, so designated initializers are
 /// unavailable. The inherited base constructor can initialize the underlying value, after which
-/// bitfields can be assigned normally. The inherited assignment operator also allows assigning a
-/// volatile source object to a non-volatile destination; it does not make a volatile destination
-/// assignable from a non-volatile source.
+/// bitfields can be assigned normally. None of the constructors run bit field code, as the bit
+/// field descriptors are trivially constructed. The inherited assignment operator also allows
+/// assigning a volatile source object to a non-volatile destination; it does not make a volatile
+/// destination assignable from a non-volatile source.
 /// @param CLASS the current class name
 #define BF_COPY_SUPERCLASS(CLASS)                                                                  \
+    BF_OWNER(CLASS)                                                                                \
     using superclass::superclass;                                                                  \
     using superclass::operator=;
 
