@@ -58,9 +58,7 @@ using copy_cv_t = typename copy_cv_reference<From, To>::type;
 /// @brief  The number of bits a bit field value of type T can hold (1 for bool).
 template <typename T>
 constexpr inline std::size_t value_bits =
-    std::is_same_v<std::remove_cv_t<T>, bool>
-        ? 1
-        : sizeof(T) * static_cast<std::size_t>(std::numeric_limits<unsigned char>::digits);
+    std::is_same_v<std::remove_cv_t<T>, bool> ? 1 : sizeof(T) * byte_bits;
 
 /// @brief  Bit field values are restricted to the types that standard bit fields support.
 template <typename T>
@@ -180,7 +178,8 @@ struct bitfield_props
     template <typename T>
     constexpr static T sign_extend(T v)
     {
-        if constexpr (std::is_signed_v<T>)
+        // a field as wide as its value type needs no extension
+        if constexpr (std::is_signed_v<T> and (size_bits() < value_bits<T>))
         {
             struct
             {
@@ -248,7 +247,7 @@ struct base
         ///         store fewer bytes than the size of their integral type)
         static constexpr std::size_t storage_bits()
         {
-            return std::min(value_bits<int_type>, value_bits<unsigned char> * sizeof(T));
+            return std::min(value_bits<int_type>, byte_bits * sizeof(T));
         }
 
       protected:

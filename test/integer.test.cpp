@@ -18,12 +18,8 @@ struct packed_integer_with_bfs : packed_integer<ENDIAN, SIZE, T>
 {
     using base_type = packed_integer<ENDIAN, SIZE, T>;
     using base_type::operator=;
-#ifdef _MSC_VER
-    using base_type::_get_field;
-    using base_type::_set_field;
-#endif
     // a class template can't use BF_OWNER, as its superclass is a dependent type
-    using bf_ops = owned_ops<typename base_type::bf_ops, packed_integer_with_bfs>;
+    BF_TEMPLATE_OWNER(packed_integer_with_bfs, base_type)
     BF_BITS(unsigned, 0, 15) halfword;
     BF_BITS(std::int8_t, 24, 31) top;
 };
@@ -111,17 +107,20 @@ const suite<"integer"> integer = []
 
     "packed_integer_bits"_test = []<class TestType>
     {
+        // LSB0 bit numbering for little endian, MSB0 for big endian
+        constexpr bool little = TestType::endianness == std::endian::little;
         packed_integer_with_bfs<TestType::endianness, 4> pus4{};
         expect(that % bitfilled_test::value_of(pus4.halfword) == 0U);
         pus4.halfword = 0xabcd;
         expect(pus4.halfword == 0xabcd);
-        expect(pus4 == 0xabcd);
+        expect(pus4 == (little ? 0xabcdU : 0xabcd0000U));
         pus4 = 0x12345678;
-        expect(pus4.halfword == 0x5678);
+        expect(pus4.halfword == (little ? 0x5678U : 0x1234U));
         pus4.top = -2;
         expect(that % bitfilled_test::value_of(pus4.top) == -2);
-        expect(pus4 == 0xfe345678);
+        expect(pus4 == (little ? 0xfe345678U : 0x123456feU));
         const auto copy = pus4;
-        expect(copy == 0xfe345678);
+        expect(copy == pus4);
+        expect(copy == (little ? 0xfe345678U : 0x123456feU));
     } | std::tuple<endian_type<std::endian::little>, endian_type<std::endian::big>>{};
 };

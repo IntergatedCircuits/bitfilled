@@ -4,7 +4,7 @@ Bitfilled is a header-only C++20 library for defining bit fields and bit-field s
 integers, packed integers, and memory-mapped registers. Field members are lightweight descriptors,
 not independent value storage: `BF_BITS` and related macros use `[[no_unique_address]]`, and the
 containing type's base class and `bf_ops` provide access to the underlying storage. Keep those
-storage and operations types consistent; prefer the library's existing host, packed, and register
+storage and operations types consistent; prefer the library's existing host, packed, byte array, and register
 types over custom layouts.
 
 Important constraints when changing or defining containing types:
@@ -27,7 +27,7 @@ Important constraints when changing or defining containing types:
   memory beyond itself). Their copy constructor is trivial but private, and only accessible to the
   owner declared by `BF_OWNER(CLASS)` / `BF_COPY_SUPERCLASS(CLASS)` (via `bitfilled::owned_ops`),
   which must precede the fields. Class templates can't use these macros (dependent superclass),
-  declare `using bf_ops = bitfilled::owned_ops<typename base_type::bf_ops, CLASS>;` instead.
+  use `BF_TEMPLATE_OWNER(CLASS, BASE)` instead, which names the base explicitly.
   Generic code (e.g. boost.ut `that %`) needs the field value, not the field: convert it first
   (see `bitfilled_test::value_of` in `test/field_traits.hpp`).
 - Constructing and copy constructing an owner must not execute bit field code. Keep descriptor
@@ -35,6 +35,8 @@ Important constraints when changing or defining containing types:
   descriptors with `bitfilled_test::stateless_field` (the latter not on MSVC, where fields are
   `__declspec(property)` accessors). Copy *assignment* of an owner does assign field by field, as
   `a.field = b.field` must copy the value.
+- On MSVC, fields are `__declspec(property)` accessors and bit field sets are indexed properties:
+  a whole set can't be assigned at once (`a.set = b.set`), copy it item by item instead.
 - Field definitions are validated (`BitfieldValue`, `BitRangeFitsStorage`, `BitRangeFitsValue`)
   as class template constraints, and again with `static_assert` in the base operations, which is
   the only check on MSVC.
@@ -49,3 +51,8 @@ cmake -S . -B build/gcc -DCMAKE_CXX_COMPILER=g++
 cmake --build build/gcc
 ctest --test-dir build/gcc --output-on-failure
 ```
+
+From WSL, `tools/wsl-msvc.sh` builds and tests with the MSVC toolchain of the Windows host
+(Visual Studio 2022+ with the C++ workload, x64 or ARM64 host), in a build tree under
+`%LOCALAPPDATA%\bitfilled` (`cmd.exe` can't use WSL paths as working directory).
+Pass `--fresh` to reconfigure, `--build-type Debug` for a debug build, and ctest arguments after `--`.

@@ -6,6 +6,7 @@ add_library(${PROJECT_NAME}-build-test OBJECT main.cpp)
 add_executable(${PROJECT_NAME}-test)
 target_sources(${PROJECT_NAME}-test
     PRIVATE
+        bytes.test.cpp
         integer.test.cpp
         size.test.cpp
         variable_bits.test.cpp

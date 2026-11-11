@@ -51,22 +51,22 @@
 #define BF_BITS(TYPE, ...)                                                                         \
     TYPE BF_UNIQUE_NAME(_getter)() const                                                           \
     {                                                                                              \
-        return _get_field<TYPE, __VA_ARGS__>();                                                    \
+        return this->template _get_field<TYPE, __VA_ARGS__>();                                     \
     }                                                                                              \
     void BF_UNIQUE_NAME(_setter)(TYPE v)                                                           \
     {                                                                                              \
-        _set_field<TYPE, __VA_ARGS__>(v);                                                          \
+        this->template _set_field<TYPE, __VA_ARGS__>(v);                                           \
     }                                                                                              \
     __declspec(property(get = BF_UNIQUE_NAME(_getter), put = BF_UNIQUE_NAME(_setter))) TYPE
 
 #define BF_BITSET(TYPE, ...)                                                                       \
     TYPE BF_UNIQUE_NAME(_getter)(std::size_t i) const                                              \
     {                                                                                              \
-        return _get_item<TYPE, __VA_ARGS__>(i);                                                    \
+        return this->template _get_item<TYPE, __VA_ARGS__>(i);                                     \
     }                                                                                              \
     void BF_UNIQUE_NAME(_setter)(std::size_t i, TYPE v)                                            \
     {                                                                                              \
-        _set_item<TYPE, __VA_ARGS__>(i, v);                                                        \
+        this->template _set_item<TYPE, __VA_ARGS__>(i, v);                                         \
     }                                                                                              \
     __declspec(property(get = BF_UNIQUE_NAME(_getter), put = BF_UNIQUE_NAME(_setter))) TYPE
 
@@ -110,6 +110,18 @@
 #define BF_OWNER(CLASS) using bf_ops = ::bitfilled::owned_ops<typename superclass::bf_ops, CLASS>;
 #endif
 
+/// @brief Declare the current class template as the owner of its bit fields (see @ref BF_OWNER).
+/// @details A class template can't use @ref BF_OWNER, as its `superclass` alias is inherited from
+/// a dependent base, so the base must be named explicitly.
+/// @param CLASS the current class (template) name
+/// @param ... the base class, e.g. `bitfilled::bytes<SIZE, ENDIAN>`
+#if _MSC_VER
+#define BF_TEMPLATE_OWNER(CLASS, ...)
+#else
+#define BF_TEMPLATE_OWNER(CLASS, ...)                                                              \
+    using bf_ops = ::bitfilled::owned_ops<typename __VA_ARGS__::bf_ops, CLASS>;
+#endif
+
 /// @brief Declare the current class as the owner of its bit fields (see @ref BF_OWNER),
 /// and inherit the superclass constructors and assignment operators.
 /// @details Intended for subclasses of a type that defines a `superclass` alias, such as
@@ -133,7 +145,9 @@
 /// @param TYPE The underlying type of the register (e.g., uint32_t).
 /// @param ACCESS The access type (e.g., rw, r, w).
 /// @param ... Custom bitfield operations when desired (e.g., bitband<PERIPH_BASE>).
-#define BF_MMREG(TYPE, ...) public ::bitfilled::mmreg<TYPE, ::bitfilled::access::__VA_ARGS__>
+#define BF_MMREG(TYPE, ...)                                                                        \
+  public                                                                                           \
+    ::bitfilled::mmreg<TYPE, ::bitfilled::access::__VA_ARGS__>
 
 #define BF_MMREG_RESERVED(WIDTH, SIZE)                                                             \
   private:                                                                                         \

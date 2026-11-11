@@ -244,32 +244,70 @@ struct regbitfieldset
     = delete;
 
   private:
-    // the whole set as a single field of the storage integer type,
-    // used to copy all items at once (the item value type might be narrower, e.g. bool)
-    using whole_type = regbitfield<typename TOps::int_type, TOps, ACCESS, OFFSET,
-                                   OFFSET + (ITEM_COUNT * ITEM_SIZE) - 1>;
+    static constexpr std::size_t total_bits = ITEM_COUNT * ITEM_SIZE;
+    // whether all items fit in the storage integer type, so that they can be copied at once
+    // (the item value type might be narrower, e.g. bool)
+    static constexpr bool copy_whole = []() constexpr
+    {
+        if constexpr (requires { typename TOps::int_type; })
+        {
+            return total_bits <= value_bits<typename TOps::int_type>;
+        }
+        else
+        {
+            return false;
+        }
+    }();
 
   public:
     BITFILLED_ASSIGN_RETURN_DECL(auto&)
     operator=(const regbitfieldset & other)
         requires(is_readwrite<access_rights>)
     {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        reinterpret_cast<whole_type&>(*this) = reinterpret_cast<const whole_type&>(other);
-        return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<whole_type&>(*this));
+        if constexpr (copy_whole)
+        {
+            using whole_type =
+                regbitfield<typename TOps::int_type, TOps, ACCESS, OFFSET, OFFSET + total_bits - 1>;
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+            reinterpret_cast<whole_type&>(*this) = reinterpret_cast<const whole_type&>(other);
+            return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<whole_type&>(*this));
+        }
+        else
+        {
+            for (std::size_t i = 0; i < ITEM_COUNT; ++i)
+            {
+                TOps::set_item((props_type&)*this, i,
+                               TOps::template get_item<T>((const props_type&)other, i));
+            }
+            return BITFILLED_ASSIGN_RETURN_EXPR(*this);
+        }
     }
     // clang-format off
     BITFILLED_ASSIGN_RETURN_DECL(auto&)
     operator=(const regbitfieldset& other) volatile
         requires(is_readwrite<access_rights>)
     {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        reinterpret_cast<volatile whole_type&>(*this) = reinterpret_cast<const whole_type&>(other);
-        return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<volatile whole_type&>(*this));
+        if constexpr (copy_whole)
+        {
+            using whole_type =
+                regbitfield<typename TOps::int_type, TOps, ACCESS, OFFSET, OFFSET + total_bits - 1>;
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+            reinterpret_cast<volatile whole_type&>(*this) =
+                reinterpret_cast<const whole_type&>(other);
+            return BITFILLED_ASSIGN_RETURN_EXPR(reinterpret_cast<volatile whole_type&>(*this));
+        }
+        else
+        {
+            for (std::size_t i = 0; i < ITEM_COUNT; ++i)
+            {
+                TOps::set_item((volatile props_type&)*this, i,
+                               TOps::template get_item<T>((const props_type&)other, i));
+            }
+            return BITFILLED_ASSIGN_RETURN_EXPR(*this);
+        }
     }
     // clang-format on
-    auto
-    operator[](std::size_t pos) const
+    auto operator[](std::size_t pos) const
         requires(is_readable<access_rights>)
     {
         return TOps::template get_item<T>((const props_type&)*this, pos);

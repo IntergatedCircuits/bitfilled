@@ -45,7 +45,40 @@ namespace bitfilled {
 }
 ```
 
-### 3. Memory-mapped I/O registers
+Its bit fields follow the same bit numbering convention as `bytes` (see below):
+LSB0 for little endian (bit 0 is the least significant bit of the value),
+MSB0 for big endian (bit 0 is the most significant bit of the value).
+
+### 3. Byte arrays with fixed endianness
+
+The `bytes` type is a byte array of any size, typically a network protocol data unit,
+whose bit fields may span multiple bytes. The endianness defines both the byte order of
+multi-byte fields, and the bit numbering, matching the convention of the protocol specifications:
+- `std::endian::little`: LSB0, bit N is `1 << (N % 8)` of byte `N / 8`
+  (e.g. Bluetooth LE, USB, CAN Intel signals)
+- `std::endian::big`: MSB0, bit N is `0x80 >> (N % 8)` of byte `N / 8`
+  (e.g. IETF RFC diagrams of IP, TCP, UDP; SCSI; CAN Motorola signals)
+
+```cpp
+#include "bitfilled/bytes.hpp"
+namespace bitfilled {
+  template <std::size_t SIZE, std::endian ENDIAN>
+  struct bytes;
+}
+
+struct ipv4_header : bitfilled::bytes<20, std::endian::big>
+{
+    BF_OWNER(ipv4_header)
+    BF_BITS(std::uint8_t, 0, 3) version;
+    BF_BITS(std::uint8_t, 4, 7) ihl;
+    BF_BITS(std::uint16_t, 16, 31) total_length;
+    BF_BITS(bool, 49) dont_fragment;
+    BF_BITS(std::uint16_t, 51, 63) fragment_offset; // spans bytes 6 and 7
+    // ...
+};
+```
+
+### 4. Memory-mapped I/O registers
 
 The `mmreg` type serves as an accurate representation of a memory-mapped register,
 with specific access limitation (e.g. read-write / read-only / write-only).
@@ -98,6 +131,16 @@ These fields can be accesses as regular members, however their value is stored i
 
 The `BF_OWNER(myint)` declaration keeps `myint` an aggregate, and makes it copyable.
 (`BF_COPY_SUPERCLASS(myint)` does the same, and additionally inherits the superclass constructors and assignment operators.)
+A class template can't use these macros, as its superclass is a dependent type,
+declare it with the base class named explicitly instead:
+```cpp
+template <std::endian ENDIAN>
+struct mytemplate : bitfilled::bytes<4, ENDIAN>
+{
+    BF_TEMPLATE_OWNER(mytemplate, bitfilled::bytes<4, ENDIAN>)
+    BF_BITS(std::uint16_t, 4, 15) field;
+};
+```
 
 ### Rules of use
 

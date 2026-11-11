@@ -7,48 +7,13 @@
 #include <concepts>
 #include <cstdint>
 #include "bitfilled/base_ops.hpp"
+#include "bitfilled/bytes.hpp"
 
 namespace bitfilled
 {
 
 template <typename T>
 concept Integral = std::is_integral_v<T>;
-
-/// @brief  Lookup unsigned integer of matching size
-template <std::size_t SIZE, class T = void>
-struct sized_integer
-{};
-
-template <std::size_t SIZE>
-struct sized_integer<SIZE, std::enable_if_t<SIZE == 1>>
-{
-    using unsigned_type = std::uint8_t;
-    using signed_type = std::int8_t;
-};
-template <std::size_t SIZE>
-struct sized_integer<SIZE, std::enable_if_t<SIZE == 2>>
-{
-    using unsigned_type = std::uint16_t;
-    using signed_type = std::int16_t;
-};
-template <std::size_t SIZE>
-struct sized_integer<SIZE, std::enable_if_t<SIZE == 4>>
-{
-    using unsigned_type = std::uint32_t;
-    using signed_type = std::int32_t;
-};
-template <std::size_t SIZE>
-struct sized_integer<SIZE, std::enable_if_t<SIZE == 8>>
-{
-    using unsigned_type = std::uint64_t;
-    using signed_type = std::int64_t;
-};
-
-template <std::size_t SIZE>
-using sized_unsigned_t = typename sized_integer<SIZE>::unsigned_type;
-
-template <std::size_t SIZE>
-using sized_signed_t = typename sized_integer<SIZE>::signed_type;
 
 /// @brief  An array type for flexibly storing an integer value.
 template <std::size_t SIZE>
@@ -59,6 +24,7 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
     static constexpr sized_unsigned_t<1> sign_extend_byte = 0xff;
 
     constexpr integer_storage() : base_type() {}
+    constexpr explicit integer_storage(const base_type& arr) : base_type(arr) {}
     // NOLINTNEXTLINE
     constexpr explicit integer_storage(const sized_unsigned_t<1> (&arr)[SIZE])
     {
@@ -191,39 +157,43 @@ struct integer_storage : public std::array<sized_unsigned_t<1>, SIZE>
 
 /// @brief  packed_integer stores an integer value in a packed byte array, with a defined
 ///         endianness.
+/// @details The bit fields follow the bit numbering convention of @ref bytes:
+///          LSB0 for little endian (bit 0 is the least significant bit of the value),
+///          MSB0 for big endian (bit 0 is the most significant bit of the value).
 /// @tparam ENDIAN: the endianness to use to convert between the integral value and the underlying
 /// memory storage
 /// @tparam SIZE: the integer storage size in octets
 /// @tparam T: the native integral representation to use
 template <std::endian ENDIAN, std::size_t SIZE, Integral T = sized_unsigned_t<std::bit_ceil(SIZE)>>
-struct packed_integer
+struct packed_integer : public bytes<SIZE, ENDIAN>
 {
-  protected: // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
-    integer_storage<SIZE> storage;
+  private:
+    using bytes_type = bytes<SIZE, ENDIAN>;
+    using bytes_type::storage;
 
   public:
     using superclass = packed_integer;
-    using bf_ops = bitfilled::base::bitfield_ops<packed_integer>;
+    using bf_ops = bytes_ops<packed_integer>;
     using value_type = T;
 
-    static constexpr auto endianness = ENDIAN;
-
-    constexpr packed_integer() : storage() {}
-    constexpr packed_integer(value_type value) : storage(value, endianness) {}
+    constexpr packed_integer() = default;
+    constexpr packed_integer(value_type value)
+        : bytes_type(integer_storage<SIZE>(value, bytes_type::endianness))
+    {}
     // NOLINTNEXTLINE
-    constexpr explicit packed_integer(const sized_unsigned_t<1> (&arr)[SIZE]) : storage(arr) {}
+    constexpr explicit packed_integer(const sized_unsigned_t<1> (&arr)[SIZE]) : bytes_type(arr) {}
 
     constexpr packed_integer& operator=(value_type value)
     {
-        storage = integer_storage<SIZE>(value, endianness);
+        storage = integer_storage<SIZE>(value, bytes_type::endianness);
         return *this;
     }
     constexpr operator value_type() const
     {
-        return storage.template to_integral<value_type>(endianness);
+        return integer_storage<SIZE>(storage).template to_integral<value_type>(
+            bytes_type::endianness);
     }
-    [[nodiscard]] constexpr std::array<sized_unsigned_t<1>, SIZE> to_array() { return storage; }
-    [[nodiscard]] constexpr const std::array<sized_unsigned_t<1>, SIZE>& as_array() const
+    [[nodiscard]] constexpr std::array<sized_unsigned_t<1>, SIZE> to_array() const
     {
         return storage;
     }
@@ -255,10 +225,10 @@ struct host_integer
     T raw_{};
 
   public:
-    constexpr operator auto &() { return raw_; }
-    constexpr operator auto &() const { return raw_; }
-    constexpr operator auto &() volatile { return raw_; }
-    constexpr operator auto &() const volatile { return raw_; }
+    constexpr operator auto&() { return raw_; }
+    constexpr operator auto&() const { return raw_; }
+    constexpr operator auto&() volatile { return raw_; }
+    constexpr operator auto&() const volatile { return raw_; }
     // constexpr bool operator<=>(const defund&) const = default;
 };
 

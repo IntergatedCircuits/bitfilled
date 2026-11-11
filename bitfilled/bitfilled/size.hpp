@@ -9,6 +9,45 @@
 
 namespace bitfilled
 {
+/// @brief  The number of bits in a byte (the library requires 8-bit bytes, as std::uint8_t does).
+inline constexpr std::size_t byte_bits = std::numeric_limits<std::uint8_t>::digits;
+
+/// @brief  Lookup unsigned integer of matching size
+template <std::size_t SIZE, class T = void>
+struct sized_integer
+{};
+
+template <std::size_t SIZE>
+struct sized_integer<SIZE, std::enable_if_t<SIZE == 1>>
+{
+    using unsigned_type = std::uint8_t;
+    using signed_type = std::int8_t;
+};
+template <std::size_t SIZE>
+struct sized_integer<SIZE, std::enable_if_t<SIZE == 2>>
+{
+    using unsigned_type = std::uint16_t;
+    using signed_type = std::int16_t;
+};
+template <std::size_t SIZE>
+struct sized_integer<SIZE, std::enable_if_t<SIZE == 4>>
+{
+    using unsigned_type = std::uint32_t;
+    using signed_type = std::int32_t;
+};
+template <std::size_t SIZE>
+struct sized_integer<SIZE, std::enable_if_t<SIZE == 8>>
+{
+    using unsigned_type = std::uint64_t;
+    using signed_type = std::int64_t;
+};
+
+template <std::size_t SIZE>
+using sized_unsigned_t = sized_integer<SIZE>::unsigned_type;
+
+template <std::size_t SIZE>
+using sized_signed_t = sized_integer<SIZE>::signed_type;
+
 /// @brief  Calculate the minimal number of bytes necessary to fit an integral value.
 /// @tparam T the value's integral type
 /// @param  integral the input value

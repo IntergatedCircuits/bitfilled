@@ -31,7 +31,7 @@ struct mmr : public bitfilled::mmreg<std::uint8_t, ACCESS>
 {
     using base_type = bitfilled::mmreg<std::uint8_t, ACCESS>;
     using base_type::operator=;
-    using bf_ops = owned_ops<typename base_type::bf_ops, mmr>;
+    BF_TEMPLATE_OWNER(mmr, base_type)
 
     // BF_MMREGBITS(bool, r, 0)  d;
 
