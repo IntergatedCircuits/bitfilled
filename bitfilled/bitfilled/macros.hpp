@@ -96,6 +96,17 @@
 
 #endif
 
+/// @brief Check that the bit field owner class doesn't add storage to its superclass.
+/// @details The class is incomplete at class scope, so the check is placed in a member function
+/// body, where it is evaluated once the class is complete (for non-template classes only).
+/// @param CLASS the current class name
+#define BF_OWNER_SIZE_CHECK(CLASS)                                                                 \
+    static constexpr void bf_owner_size_check_() noexcept                                          \
+    {                                                                                              \
+        static_assert(sizeof(CLASS) == sizeof(superclass),                                         \
+                      "owner grew: has data members or identical bit field types");                \
+    }
+
 /// @brief Declare the current class as the owner of its bit fields.
 /// @details Must precede the bit field declarations, in a class derived from a type that defines
 /// a `superclass` alias (such as `host_integer`, `packed_integer` or `mmreg`). The bit fields
@@ -103,11 +114,15 @@
 /// while copying a bit field descriptor out of its owner (e.g. `auto v = obj.field;`) fails to
 /// compile. Without an owner, the class containing bit fields is not copy constructible.
 /// The class remains an aggregate.
+/// The class must not add storage to its superclass, which is checked at compile time
+/// (see @ref BF_OWNER_SIZE_CHECK).
 /// @param CLASS the current class name
 #if _MSC_VER
-#define BF_OWNER(CLASS)
+#define BF_OWNER(CLASS) BF_OWNER_SIZE_CHECK(CLASS)
 #else
-#define BF_OWNER(CLASS) using bf_ops = ::bitfilled::owned_ops<typename superclass::bf_ops, CLASS>;
+#define BF_OWNER(CLASS)                                                                            \
+    BF_OWNER_SIZE_CHECK(CLASS)                                                                     \
+    using bf_ops = ::bitfilled::owned_ops<typename superclass::bf_ops, CLASS>;
 #endif
 
 /// @brief Declare the current class template as the owner of its bit fields (see @ref BF_OWNER).

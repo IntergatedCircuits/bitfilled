@@ -11,8 +11,9 @@ Important constraints when changing or defining containing types:
 
 - `[[no_unique_address]]` is not a guarantee of zero size. Two fields that resolve to the same
   descriptor type (for example, the same value type, operations, access, and bit range) must still
-  have distinct addresses, so layout may grow. For subclasses intended to add no storage, add a
-  `static_assert` comparing their size with the storage base, e.g.
+  have distinct addresses, so layout may grow. `BF_OWNER` / `BF_COPY_SUPERCLASS` check that the
+  owner has the size of its superclass. Class templates (`BF_TEMPLATE_OWNER`) and owners without
+  these macros need a manual `static_assert` comparing their size with the storage base, e.g.
   `static_assert(sizeof(my_type) == sizeof(bitfilled::host_integer<std::uint32_t>));`.
 - Field ranges are absolute and may overlap intentionally. Avoid duplicate descriptor types unless
   the resulting layout is checked; different ranges usually produce different descriptor types.
